@@ -3,7 +3,7 @@ import scrapy
 
 class MoviesSpiderSpider(scrapy.Spider):
     name = "movies_spider"
-    limit = 21 # To limit the number of movies to retrieve. None otherwise
+    limit = 6 # To limit the number of movies to retrieve. None otherwise
     start_urls = ["https://allocine.fr/films/"]
     allowed_domains = ["allocine.fr"]
 
@@ -80,10 +80,18 @@ class MoviesSpiderSpider(scrapy.Spider):
             Parse a movie page to retrieve related data (title, synopsis, etc.)
         """
 
-        # IMPLEMENTATION OF PATHS
+        # IMPLEMENTATION OF DATA PATHS
         paths = {
             'Title': "//h1/text()",
-            'Synopsis': "//section[starts-with(@id, 'synopsis')]//p/text()"}
+            'Synopsis': "//section[starts-with(@id, 'synopsis')]//p/text()",
+            'MetaData': """//div[
+                                 contains(@class, 'card')
+                                 and contains(@class, 'entity')]
+                           //div[contains(@class, 'info')]
+                           //text()"""}
+
+        # IMPLEMENTATION OF A GRABING FEATURE
+        grab = lambda x: ''.join(response.xpath(x).getall())
 
         # DATA SCRAPING
-        yield {key: response.xpath(path).get() for key, path in paths.items()}
+        yield {key: grab(path) for key, path in paths.items()}
