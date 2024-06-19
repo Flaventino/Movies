@@ -3,7 +3,7 @@ import scrapy
 
 class MoviesSpiderSpider(scrapy.Spider):
     name = "movies_spider"
-    limit = 5 # To limit the number of movies to retrieve. None otherwise
+    limit = 21 # To limit the number of movies to retrieve. None otherwise
     start_urls = ["https://allocine.fr/films/"]
     allowed_domains = ["allocine.fr"]
 
@@ -12,18 +12,36 @@ class MoviesSpiderSpider(scrapy.Spider):
 
         # BASIC SETTINGS & INITIALIZATION
         stop = False
-        movies = response.xpath(f"//li[@class='mdl']")
+        movies = response.xpath("//li[@class='mdl']")
         self.n = 0 if not hasattr(self, 'n') else self.n
+
+        # print('##################################################')
+        # print(f"LONGUEUR DE 'movies'{len(movies)}")
+        # print('##################################################')
 
         # EXPLORES EACH MOVIE PAGE & RETRIEVES RELATED DATA
         for movie in movies:
             self.n += 1
-            movie_url = movie.xpath('.h2/a/@href').get()
+            movie_url = movie.xpath('.//h2/a/@href').get()
+            # print('##################################################')
+            # print(movie_url)
+            # print('##################################################')
+            # # print(type(movie_url))
+            # # print('##################################################')
+            # # movie_url = movie_url[5:]
+            # # print(movie_url)
+            # # print('##################################################')
 
-            if self.limit and self.limit >= self.n:
+            if self.limit and self.limit <= self.n:
                 stop = True
+                print("#####################################################")
+                print(F"{self.limit}/{self.n} -- BREAK")
+                print("#####################################################")
                 break
             else:
+                print("#####################################################")
+                print("MOUCHARD DE TEST")
+                print("#####################################################")
                 yield response.follow(movie_url, self.parse_movie)
 
         # LOOKS FOR A POTENTIAL NEW PAGE TO EXPLORE
@@ -46,7 +64,8 @@ class MoviesSpiderSpider(scrapy.Spider):
         # GET THE ID OF THE VERY LAST AVAILABLE PAGE
         numbers = response.xpath(hub_path('')).getall()
         numbers = [number.strip() for number in numbers]
-        last_id = max([int(number) for number in numbers if id.isnumeric()])
+        numbers = [int(number) for number in numbers if number.isnumeric()]
+        last_id = max(numbers)
 
         # UPDATES 'url' IF REQUIRED
         if page_id <= last_id:
@@ -55,5 +74,16 @@ class MoviesSpiderSpider(scrapy.Spider):
         # FUNCTION OUTPUT
         return url
 
+
     def parse_movie(self, response):
-        pass
+        """
+            Parse a movie page to retrieve related data (title, synopsis, etc.)
+        """
+
+        # IMPLEMENTATION OF PATHS
+        paths = {
+            'Title': "//h1/text()",
+            'Synopsis': "//section[starts-with(@id, 'synopsis')]//p/text()"}
+
+        # DATA SCRAPING
+        yield {key: response.xpath(path).get() for key, path in paths.items()}

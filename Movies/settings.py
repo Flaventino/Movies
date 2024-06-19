@@ -29,7 +29,7 @@ ROBOTSTXT_OBEY = False
 
 # PROTECTION AGAINST SERVER OVERHELMING
 # 1. General setting
-DOWNLOAD_DELAY = 2
+DOWNLOAD_DELAY = 1
 # 2. Setup of a real time random change 
 RANDOMIZE_DOWNLOAD_DELAY = True
 
