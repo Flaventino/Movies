@@ -1,4 +1,5 @@
 import scrapy
+#import logging
 from urllib.parse import urljoin
 
 
@@ -8,6 +9,12 @@ class MoviesSpiderSpider(scrapy.Spider):
     start_urls = ["https://allocine.fr/films/"]
     allowed_domains = ["allocine.fr"]
 
+
+    # CUSTOM SCRAPPING SETTINGS
+    custom_settings = {
+        'LOG_LEVEL': 'WARNING'} # Adjust logging level not to overload console}
+
+    # METHODS OF THE RELATED SPIDERS INSTANCES
     def parse(self, response):
         """
         Navigates between movies pages
@@ -35,31 +42,6 @@ class MoviesSpiderSpider(scrapy.Spider):
             yield response.follow(next_page, callback=self.parse)
 
 
-    def get_next_page(self, response):
-        """Returns the new page url to follow or none"""
-
-        # BASIC SETTINGS & INITIALIZATION
-        url = None
-        current = "[contains(@class, 'current')]"
-        hub_path = "//nav[starts-with(@class, 'pag')]/div/span{}/text()".format
-
-        # RETRIEVES THE CURRENT PAGE ID (i.e. current page number)
-        page_id = 1 + int(response.xpath(hub_path(current)).get().strip())
-
-        # GET THE ID OF THE VERY LAST AVAILABLE PAGE
-        numbers = response.xpath(hub_path('')).getall()
-        numbers = [number.strip() for number in numbers]
-        numbers = [int(number) for number in numbers if number.isnumeric()]
-        last_id = max(numbers)
-
-        # UPDATES 'url' IF REQUIRED
-        if page_id <= last_id:
-            url = f'{self.start_urls[0]}/?page={page_id}'
-
-        # FUNCTION OUTPUT
-        return url
-
-
     def parse_movie(self, response):
         """
         Parse a movie page to retrieve related data (title, synopsis, etc.)
@@ -84,7 +66,7 @@ class MoviesSpiderSpider(scrapy.Spider):
         attributes = {'MoviePoster': f"{meta}//figure//img/@src"}
 
         # RETRIEVING MOVIE GENERAL DATA
-        data = {key: grab(f'{path}/text()') for key, path in paths.items()}
+        data = {key: grab(f'{path}//text()') for key, path in paths.items()}
         data.update({key: grab(path) for key, path in attributes.items()})
 
         # RETRIEVING MOVIE CASTING DATA IF AVAILABLE
@@ -103,7 +85,7 @@ class MoviesSpiderSpider(scrapy.Spider):
         """
 
         # RETRIEVES CASTING DATA
-        path = "//section[contains(@class, 'actor')]"
+        path = "//section[contains(@class, 'actor')]//text()"
         casting = "¤".join(response.xpath(path).getall())
 
         # UPDATES MOVIE DATA WITH ITS CASTING DATA
@@ -111,3 +93,28 @@ class MoviesSpiderSpider(scrapy.Spider):
 
         # FUNCTION OUTPUT
         yield response.meta['data']
+
+
+    def get_next_page(self, response):
+        """Returns the new page url to follow or none"""
+
+        # BASIC SETTINGS & INITIALIZATION
+        url = None
+        current = "[contains(@class, 'current')]"
+        hub_path = "//nav[starts-with(@class, 'pag')]/div/span{}/text()".format
+
+        # RETRIEVES THE CURRENT PAGE ID (i.e. current page number)
+        page_id = 1 + int(response.xpath(hub_path(current)).get().strip())
+
+        # GET THE ID OF THE VERY LAST AVAILABLE PAGE
+        numbers = response.xpath(hub_path('')).getall()
+        numbers = [number.strip() for number in numbers]
+        numbers = [int(number) for number in numbers if number.isnumeric()]
+        last_id = max(numbers)
+
+        # UPDATES 'url' IF REQUIRED
+        if page_id <= last_id:
+            url = f'{self.start_urls[0]}/?page={page_id}'
+
+        # FUNCTION OUTPUT
+        return url
