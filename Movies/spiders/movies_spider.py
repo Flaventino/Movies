@@ -80,18 +80,26 @@ class MoviesSpiderSpider(scrapy.Spider):
             Parse a movie page to retrieve related data (title, synopsis, etc.)
         """
 
-        # IMPLEMENTATION OF DATA PATHS
-        paths = {
-            'Title': "//h1/text()",
-            'Synopsis': "//section[starts-with(@id, 'synopsis')]//p/text()",
-            'MetaData': """//div[
-                                 contains(@class, 'card')
-                                 and contains(@class, 'entity')]
-                           //div[contains(@class, 'info')]
-                           //text()"""}
+        # BASIC SETTINGS & INITIALIZATION
+        meta = "//div[contains(@class, 'card') and contains(@class, 'entity')]"
 
-        # IMPLEMENTATION OF A GRABING FEATURE
-        grab = lambda x: ''.join(response.xpath(x).getall())
+        # IMPLEMENTATING DATA PATHS FOR PURELY TEXT VALUES
+        paths = {
+            'Title' : f"{meta}//div[@class='meta-body-item']",
+            'Title_fr': "//h1",
+            'Synopsis': "//section[starts-with(@id, 'synopsis')]//p",
+            'Creators': f"{meta}//div[contains(@class, 'oneline')]",
+            'MetaData': f"{meta}//div[contains(@class, 'info')]",
+            'Techinal': "//section[contains(@class, 'technical')]",
+            'MovieScores': f"{meta}//div[contains(@class, 'rating')]"}
+
+        # IMPLEMENTING DATA PATHS FOR TAG ATTRIBUTES
+        attributes = {'MoviePoster': f"{meta}//figure//img/@src"}
 
         # DATA SCRAPING
-        yield {key: grab(path) for key, path in paths.items()}
+        grab = lambda x: '¤'.join(response.xpath(x).getall())
+        data = {key: grab(f'{path}/text()') for key, path in paths.items()}
+        data.update({key: grab(path) for key, path in attributes.items()})
+
+        # FUNCTION OUTPUT
+        yield data
