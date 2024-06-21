@@ -5,6 +5,7 @@
 
 
 # useful for handling different item types with a single interface
+import regex as re
 from itemadapter import ItemAdapter
 
 

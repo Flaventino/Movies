@@ -98,7 +98,7 @@ class MoviesSpiderSpider(scrapy.Spider):
         print("##########################################################")
         #for key, value in response.meta['data'].items():
         for key, value in response.meta['item'].items():
-            print(f'{key}: {value}')
+            print(f'{key}:\n§{str(value)}§')
             print()
             print()
         #print(dir(response.meta['item']))
