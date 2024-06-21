@@ -1,6 +1,6 @@
 import scrapy
-#import logging
 from urllib.parse import urljoin
+from Movies.items import MoviesItem
 
 
 class MoviesSpiderSpider(scrapy.Spider):
@@ -54,28 +54,31 @@ class MoviesSpiderSpider(scrapy.Spider):
 
         # IMPLEMENTATING DATA PATHS FOR PURELY TEXT VALUES
         paths = {
-            'Title' : f"{meta}//div[@class='meta-body-item']",
-            'Title_fr': "//h1",
-            'Synopsis': "//section[starts-with(@id, 'synopsis')]//p",
-            'Creators': f"{meta}//div[contains(@class, 'oneline')]",
-            'MetaData': f"{meta}//div[contains(@class, 'info')]",
-            'Techinal': "//section[contains(@class, 'technical')]",
-            'MovieScores': f"{meta}//div[contains(@class, 'rating')]"}
+            'title' : f"{meta}//div[@class='meta-body-item']",
+            'ratings': f"{meta}//div[contains(@class, 'rating')]",
+            'title_fr': "//h1",
+            'synopsis': "//section[starts-with(@id, 'synopsis')]//p",
+            'creators': f"{meta}//div[contains(@class, 'oneline')]",
+            'metadata': f"{meta}//div[contains(@class, 'info')]",
+            'technical': "//section[contains(@class, 'technical')]"}
 
         # IMPLEMENTING DATA PATHS FOR TAG ATTRIBUTES
-        attributes = {'MoviePoster': f"{meta}//figure//img/@src"}
+        attributes = {'film_poster': f"{meta}//figure//img/@src"}
 
         # RETRIEVING MOVIE GENERAL DATA
         data = {key: grab(f'{path}//text()') for key, path in paths.items()}
         data.update({key: grab(path) for key, path in attributes.items()})
 
+        # INSTANCIATION OF A 'MovieItem' FINALLY FILLED WITH THE SCRAPED DATA
+        item = MoviesItem(**data)
+
         # RETRIEVING MOVIE CASTING DATA IF AVAILABLE
         if not casting_url:
-            yield data
+            yield item
         else:
             casting_url = urljoin(response.url, casting_url)
             yield scrapy.Request(url=casting_url,
-                                 meta={'data': data},
+                                 meta={'item': item},
                                  callback=self.parse_casting)
 
 
@@ -89,10 +92,23 @@ class MoviesSpiderSpider(scrapy.Spider):
         casting = "¤".join(response.xpath(path).getall())
 
         # UPDATES MOVIE DATA WITH ITS CASTING DATA
-        response.meta['data'].update({'Casting': casting})
+        #response.meta['data'].update({'casting': casting}) # Old version
+        response.meta['item']['casting'] = casting
+
+        print("##########################################################")
+        #for key, value in response.meta['data'].items():
+        for key, value in response.meta['item'].items():
+            print(f'{key}: {value}')
+            print()
+            print()
+        #print(dir(response.meta['item']))
+        #print(response.meta['item'])
+        print("##########################################################")
+        print("-----------------------------------------------------------")
 
         # FUNCTION OUTPUT
-        yield response.meta['data']
+        #yield response.meta['data'] # Old version (when item not implemented)
+        yield response.meta['item']
 
 
     def get_next_page(self, response):
