@@ -18,6 +18,17 @@ class MovieScraperPipeline:
         # TITLES CLEANING
         item = self.clean_titles(item)
 
+        print("##########################################################")
+        #for key, value in response.meta['data'].items():
+        for key, value in item.items():
+            if value:
+                print(f'{key}:\n§{repr(value)}§')
+                print()
+                print()
+        #print(dir(response.meta['item']))
+        #print(response.meta['item'])
+        print("##########################################################")
+        print("-----------------------------------------------------------")
         return item
 
     def clean_titles(self, item):
