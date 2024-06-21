@@ -70,9 +70,9 @@ CONCURRENT_REQUESTS_PER_DOMAIN = 20 # (Default: 16)
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    "Movies.pipelines.MoviesPipeline": 300,
-#}
+ITEM_PIPELINES = {
+    "Movies.pipelines.MovieScraperPipeline": 300,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
