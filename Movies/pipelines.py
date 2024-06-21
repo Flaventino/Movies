@@ -12,11 +12,17 @@ from itemadapter import ItemAdapter
 class MovieScraperPipeline:
     def process_item(self, item, spider):
         """
-        MONITORING FUNCTION TO DRIVE DATA CLEANING PROCESS
+        MONITORING FUNCTION TO DRIVE THE DATA CLEANING PROCESS
         """
 
-        # TITLES CLEANING
-        item = self.clean_titles(item)
+        # INITIALIZATION
+        self.adapter = ItemAdapter(item)
+
+        # DATA CLEANING PIPELINE
+        item = self.clean_titles(item)      # Titles cleaning
+        item = self.clean_synopsis(item)    # Synopsis cleaning
+        item = self.clean_film_poster(item) # Movie poster (get clean url)
+
 
         print("##########################################################")
         #for key, value in response.meta['data'].items():
@@ -32,20 +38,40 @@ class MovieScraperPipeline:
         return item
 
     def clean_titles(self, item):
-        adapter = ItemAdapter(item)
         for field in ['title', 'title_fr']:
-            # Get string expression of the field
-            value = adapter.get(field)
+            # GET STRING EXPRESSION OF THE FIELD TO CLEAN
+            value = self.adapter.get(field)
 
-            # Cleaning process
+            # CLEANING PROCESS
             value = re.sub(r'[\s¤]+$', '', value)
             value = re.search(r'[^¤]*$', value)
             value = '' if value is None else value.group().strip()
             value = re.sub(r'\s+', ' ', value)
 
-            # Replacement of bad values (i.e. 'NaN' values) by just None
-            value = value if len(value) > 0 else None
+            # UPDATING THE ITEM'S FIELD WITH A CLEAN VALUE OR SIMPLY NONE.
+            self.adapter[field] = value if len(value) > 0 else None
 
-            # Update of the field in the item
-            adapter[field] = value
+        # FUNCTION OUTPUT
         return item
+
+    def clean_synopsis(self, item):
+        # INITIALIZATION
+        field = 'synopsis'
+
+        # CLEANING PROCESS
+        self.adapter[field] = self.adapter.get(field).strip()
+
+        # FUNCTION OUTPUT
+        return item
+
+    def clean_film_poster(self, item):
+        # INITIALIZATION
+        field = 'film_poster'
+
+        # CLEANING PROCESS
+        poster_url = re.search(r'http.+\.jpg', self.adapter.get(field))
+        self.adapter[field] = poster_url.group(0) if poster_url else None
+
+        # FUNCTION OUTPUT
+        return item
+
