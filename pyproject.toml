@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.11"
 scrapy = "^2.11.2"
 regex = "^2024.5.15"
+dateparser = "^1.2.0"
 
 
 [build-system]

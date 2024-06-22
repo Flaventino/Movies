@@ -23,6 +23,7 @@ class MovieScraperPipeline:
         item = self.clean_synopsis(item)    # Synopsis cleaning
         item = self.clean_film_poster(item) # Movie poster (get clean url)
         item = self.clean_creators(item)    # Extract directors and writers
+        item = self.clean_metadata(item)    # Extract
 
 
         print("##########################################################")
@@ -103,3 +104,13 @@ class MovieScraperPipeline:
 
         # FUNCTION OUTPUT
         return item
+
+    def clean_metadata(self, item):
+        """
+        Purpose here is to extract date, medium, duration and genre of movie.
+        """
+
+        # INITIALIZATION (get creators field from item and preprocesses it)
+        data = self.adapter.get('metadata')  # Retrieves scraped data 
+        data = re.sub(r'[^\S ]+', '¤', data) # Replaces any controls by '¤' 
+        data = re.sub(r'\s+', ' ', data)     # Drops any supernumeraries spaces
