@@ -22,6 +22,7 @@ class MovieScraperPipeline:
         item = self.clean_titles(item)      # Titles cleaning
         item = self.clean_synopsis(item)    # Synopsis cleaning
         item = self.clean_film_poster(item) # Movie poster (get clean url)
+        item = self.clean_creators(item)    # Extract directors and writers
 
 
         print("##########################################################")
@@ -75,3 +76,30 @@ class MovieScraperPipeline:
         # FUNCTION OUTPUT
         return item
 
+    def clean_creators(self, item):
+        """
+        This method extracts the list of directors and that of screenwriters.
+        """
+
+        # INITIALIZATION (get creators field from item and preprocesses it)
+        creators = re.sub(r'[^\S ]+', '¤', self.adapter.get('creators'))
+
+        # RAW FIELDS EXTRACTION
+        writers = re.search(r'(?i)(?<=¤\s*par\s*¤).*', creators)
+        directors = re.sub(r'(?i)¤\s*par\s*¤.*$', '', creators)
+        directors = re.search(r'(?i)(?<=¤\s*de\s*¤).*', directors)
+
+        # DATA CLEANING
+        data = {'directors': directors, 'screenwriters': writers}
+        for field, value in data.items():
+            # Processes effective cleaning
+            value = value.group() if value else ''
+            value = re.findall(r'[\w\s]+', value)     # Get all people names
+            value = [name.strip() for name in value]  # Drop extra spaces
+            value = "¤".join(value)                   # Merge to a single str
+
+            # Updates scrapy Item fields whit clean value or simply 'None'.
+            self.adapter[field] = value if len(value) > 0 else None
+
+        # FUNCTION OUTPUT
+        return item
