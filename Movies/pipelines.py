@@ -5,7 +5,7 @@
 
 
 # useful for handling different item types with a single interface
-#import dateparser
+import dateparser
 import regex as re
 from itemadapter import ItemAdapter
 
@@ -186,21 +186,20 @@ class MovieScraperPipeline:
         """
 
         # INITIALIZATION (get creators field from item and preprocesses it)
-        data = self.adapter.get('metadata')  # Retrieves scraped data 
-        #data = re.sub(r'[^\S ]+', '¤', data) # Replaces any controls by '¤' 
-        #data = re.sub(r'\s+', ' ', data)     # Drops any supernumeraries spaces
+        data = self.adapter.get('metadata')  # Retrieves scraped data
+        data = self.flatten_raw_string(data) # Cleans controls & extra spaces
 
-        #data = self.flatten_raw_string(data) # cleans controls & extra spaces
+        # EXTRACTING THE MOVIE RELEASE DATE
+        date = r'(?i)\d+\s+\p{L}+\s+\d{4}'    # Reg. exp. to match dates 
+        date = re.search(date, data)          # Look for dates in the data
+        date = date.group() if date else None # Extract date if any or set None
+        date = dateparser.parse(date)         # Instanciates a date object
 
-        # print('##############################################################')
-        # print('GENRES DE FILMS DANS METADATA CLEANING')
-        # print(self.genre)
-        # print('##############################################################')
-        # print('##############################################################')
-        # print('GENRES DE FILMS DANS METADATA CLEANING')
-        # print(self.country)
-        # print('##############################################################')
+        # FORMATING THE MOVIE RELEASE DATE + ITEM UPDATE OF RELATED FIELD
+        # isodate = date.strftime('%Y/%m/%d') if date else None
+        self.adapter['release_date'] = date.strftime('%Y/%m/%d') if date else None
 
-        #self.adapter['metadata'] = "Tartampion"
+
+        self.adapter['metadata'] = data
         # FUNCTION OUTPUT (returns updated item)
         return item
