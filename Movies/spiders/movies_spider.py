@@ -14,10 +14,41 @@ class MoviesSpiderSpider(scrapy.Spider):
     custom_settings = {
         'LOG_LEVEL': 'WARNING'} # Adjust logging level not to overload console}
 
-    # METHODS OF THE RELATED SPIDERS INSTANCES
+    # METHODS OF THE RELATED SPIDER INSTANCES
     def parse(self, response):
         """
-        Navigates between movies pages
+        The purpose here is to drive the scraping process
+        """
+
+        # GET THE FULL LIST OF MOVIE GENRES
+        path = "//ul[contains(@data-name, '{}')]//text()".format
+        #genres_path = "//ul[contains(@data-name, 'genre')]//text()"
+        #self.genres = '¤'.join(response.xpath(genres_path).getall())
+        self.genre = '¤'.join(response.xpath(path('genre')).getall())
+        # print('##############################################################')
+        # print('GENRES DE FILMS DEPUIS "PARSE"')
+        # print(dir(response))
+        # print(response.url)
+        # print(path("'GASTON'"))
+        # print(self.genre[:20])
+        # print('##############################################################')
+
+        # GET THE FULL LIST OF COUNTRIES
+        #countries_path = "//ul[contains(@data-name, 'pays')]//text()"
+        # self.countries = '¤'.join(response.xpath(countries_path).getall())
+        self.country = '¤'.join(response.xpath(path('pays')).getall())
+        # print('##############################################################')
+        # print('PAYS DEPUIS "PARSE"')
+        # print(path('GASTON'))
+        # print(self.country[:20])
+        # print('##############################################################')
+
+        # SCRAP MOVIES
+        yield from self.parse_pages(response)
+
+    def parse_pages(self, response):
+        """
+        Navigates one mmovie listing page to another.
         """
 
         # BASIC SETTINGS & INITIALIZATION
@@ -25,7 +56,7 @@ class MoviesSpiderSpider(scrapy.Spider):
         movies = response.xpath("//li[@class='mdl']")
         self.n = 0 if not hasattr(self, 'n') else self.n
 
-        # EXPLORES EACH MOVIE PAGE & RETRIEVES RELATED DATA
+        # EXPLORES EACH MOVIE DEDICATED PAGE & RETRIEVES RELATED DATA
         for movie in movies:
             self.n += 1
             movie_url = movie.xpath('.//h2/a/@href').get()
@@ -36,11 +67,10 @@ class MoviesSpiderSpider(scrapy.Spider):
             else:
                 yield response.follow(movie_url, self.parse_movie)
 
-        # LOOKS FOR A POTENTIAL NEW PAGE TO EXPLORE AND MOVE TO IT IF ANY
+        # LOOKS FOR A NEW PAGE WITH OTHER MOVIES TO SCRAP & MOVES TO IT IF ANY
         next_page = self.get_next_page(response)
         if next_page and not stop:
-            yield response.follow(next_page, callback=self.parse)
-
+            yield response.follow(next_page, callback=self.parse_pages)
 
     def parse_movie(self, response):
         """
@@ -81,7 +111,6 @@ class MoviesSpiderSpider(scrapy.Spider):
                                  meta={'item': item},
                                  callback=self.parse_casting)
 
-
     def parse_casting(self, response):
         """
         Parse the cast page to retrieve casting data.
@@ -98,7 +127,6 @@ class MoviesSpiderSpider(scrapy.Spider):
         # FUNCTION OUTPUT
         #yield response.meta['data'] # Old version (when item not implemented)
         yield response.meta['item']
-
 
     def get_next_page(self, response):
         """Returns the new page url to follow or none"""

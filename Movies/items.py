@@ -24,6 +24,7 @@ class MoviesItem(scrapy.Item):
 
     # MOVIE METADATA
     metadata = scrapy.Field()
+    duration = scrapy.Field()
     categories = scrapy.Field()
     release_date = scrapy.Field()
     availability = scrapy.Field()
