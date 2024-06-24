@@ -11,22 +11,6 @@ from itemadapter import ItemAdapter
 
 
 class MovieScraperPipeline:
-    # # INSTANCES INITIALIZATION
-    # def close_spider(self, spider):
-
-    #     # ADDING LISTS OF COUNTRIES AND GENRES TO THE CLEANUP PIPELINE
-    #     self.genres = self.clean_relations(spider.genres)
-    #     self.countries = self.clean_relations(spider.countries)
-
-    #     print('##############################################################')
-    #     print('GENRES DE FILMS')
-    #     print(self.genres)
-    #     print('##############################################################')
-    #     print('##############################################################')
-    #     print('GENRES DE FILMS')
-    #     print(self.countries)
-    #     print('##############################################################')
-
     # SETTER METHODS
     def set_genre_country(self, spider):
         """
@@ -37,16 +21,6 @@ class MovieScraperPipeline:
         # ADDING LISTS OF COUNTRIES AND GENRES TO THE CLEANUP PIPELINE
         self.genre = self.convert_to_set(spider.genre)
         self.country = self.convert_to_set(spider.country)
-
-        # print('##############################################################')
-        # print('GENRES DE FILMS DANS set_genre_country')
-        # print(self.genre)
-        # print(spider.name)
-        # print('##############################################################')
-        # print('##############################################################')
-        # print('GENRES DE FILMS DANS set_genre_country')
-        # #print(self.country)
-        # print('##############################################################')
 
 
     # GENERAL AND/OR COMMON DATA CLEANING METHODS
@@ -81,6 +55,21 @@ class MovieScraperPipeline:
         # FUNCTION OUTPUT
         return data
 
+    def get_first(self, regex, string):
+        """
+        Parses given string with given regex. Returns 1st match or None
+
+        Arguments:
+            regex  (str): Regex expression to use to parse the given string.
+            string (str): String to be parsed in search of the given regex.
+        """
+
+        # EXTRACTION PROCESS
+        string = re.search(regex, string)
+
+        # FUNCTION OUTPUT
+        return string.group() if string else None
+
 
     # METHODS DEDICATED TO ITEM CLEANING
     def process_item(self, item, spider):
@@ -93,11 +82,11 @@ class MovieScraperPipeline:
         _ = None if hasattr(self, 'genre') else self.set_genre_country(spider)
 
         # DATA CLEANING PIPELINE
-        item = self.clean_titles(item)      # Titles cleaning
-        item = self.clean_synopsis(item)    # Synopsis cleaning
-        item = self.clean_film_poster(item) # Movie poster (get clean url)
-        item = self.clean_creators(item)    # Extract directors and writers
-        item = self.clean_metadata(item)    # Extract date, duration and genres
+        self.clean_titles()      # Titles cleaning
+        self.clean_synopsis()    # Synopsis cleaning
+        self.clean_film_poster() # Movie poster (get clean url)
+        self.clean_creators()    # Extract directors and writers
+        self.clean_metadata()    # Extract date, duration and genres
 
 
         print("##########################################################")
@@ -114,7 +103,7 @@ class MovieScraperPipeline:
 
         return item
 
-    def clean_titles(self, item):
+    def clean_titles(self):
         for field in ['title', 'title_fr']:
             # GET STRING EXPRESSION OF THE FIELD TO CLEAN
             value = self.adapter.get(field)
@@ -122,51 +111,44 @@ class MovieScraperPipeline:
             # CLEANING PROCESS
             value = re.sub(r'[\s¤]+$', '', value)
             value = re.search(r'[^¤]*$', value)
-            value = '' if value is None else value.group().strip()
+            value = value.group().strip() if value else ''
             value = re.sub(r'\s+', ' ', value)
 
             # UPDATING THE ITEM'S FIELD WITH A CLEAN VALUE OR SIMPLY NONE.
             self.adapter[field] = value if len(value) > 0 else None
 
-        # FUNCTION OUTPUT
-        return item
-
-    def clean_synopsis(self, item):
+    def clean_synopsis(self):
         # INITIALIZATION
         field = 'synopsis'
 
         # CLEANING PROCESS
         self.adapter[field] = self.adapter.get(field).strip()
 
-        # FUNCTION OUTPUT
-        return item
-
-    def clean_film_poster(self, item):
+    def clean_film_poster(self):
         # INITIALIZATION
-        field = 'film_poster'
+        field, regex = 'film_poster', r'http.+\.jpg'
 
         # CLEANING PROCESS
-        poster_url = re.search(r'http.+\.jpg', self.adapter.get(field))
-        self.adapter[field] = poster_url.group(0) if poster_url else None
+        self.adapter[field] = self.get_first(regex, self.adapter.get(field))
 
-        # FUNCTION OUTPUT
-        return item
-
-    def clean_creators(self, item):
+    def clean_creators(self):
         """
         This method extracts the list of directors and that of screenwriters.
         """
 
-        # INITIALIZATION (get creators field from item and preprocesses it)
-        creators = re.sub(r'[^\S ]+', '¤', self.adapter.get('creators'))
+        # BASIC SETTINGS & INITIALIZATION
+        field = 'creators'
+
+        # CLEANS the 'creators' FIELD IN PLACE BEFORE EXTRACTING DATA
+        self.adapter[field] = self.flatten_raw_string(self.adapter.get(field))
 
         # RAW FIELDS EXTRACTION (get raw data for directors and screenwriters)
-        writers = re.search(r'(?i)(?<=¤\s*par\s*¤).*', creators)
-        directors = re.sub(r'(?i)¤\s*par\s*¤.*$', '', creators)
+        writers = re.search(r'(?i)(?<=¤\s*par\s*¤).*', self.adapter.get(field))
+        directors = re.sub(r'(?i)¤\s*par\s*¤.*$', '', self.adapter.get(field))
         directors = re.search(r'(?i)(?<=¤\s*de\s*¤).*', directors)
         movie_makers = {'directors': directors, 'screenwriters': writers}
 
-        # DATA CLEANING (gets names of all directors and writers)
+        # DATA CLEANING (getting names of all directors and writers)
         for field, value in movie_makers.items():
             # Name extraction & cleaning process
             value = value.group() if value else ''    # Get raw data to clean
@@ -174,32 +156,70 @@ class MovieScraperPipeline:
             value = [name.strip() for name in value]  # Drop extra spaces
             value = "¤".join(value)                   # Merge to a single str
 
-            # Updates scrapy Item fields whit clean value (or simply 'None').
+            # Updates scrapy Item fields whith clean value (or simply 'None').
             self.adapter[field] = value if len(value) > 0 else None
 
-        # FUNCTION OUTPUT
-        return item
-
-    def clean_metadata(self, item):
+    def clean_metadata(self):
         """
         Extract clean date, medium, duration and genre of movie from metadata.
         """
 
-        # INITIALIZATION (get creators field from item and preprocesses it)
+        # INITIALIZATION
         data = self.adapter.get('metadata')  # Retrieves scraped data
         data = self.flatten_raw_string(data) # Cleans controls & extra spaces
+        self.adapter['metadata'] = data      # Updates Item 'metadata' field
 
-        # EXTRACTING THE MOVIE RELEASE DATE
-        date = r'(?i)\d+\s+\p{L}+\s+\d{4}'    # Reg. exp. to match dates 
-        date = re.search(date, data)          # Look for dates in the data
-        date = date.group() if date else None # Extract date if any or set None
-        date = dateparser.parse(date)         # Instanciates a date object
+        # EXTRACTION & CLEANING PROCESS
+        self.extract_movie_date()            # Retrieves and reformat date
 
-        # FORMATING THE MOVIE RELEASE DATE + ITEM UPDATE OF RELATED FIELD
-        # isodate = date.strftime('%Y/%m/%d') if date else None
-        self.adapter['release_date'] = date.strftime('%Y/%m/%d') if date else None
+        # # MOVIE RUNTIME
+        # # 1. Extracting the movie runtile (i.e. duration)
+        # runtime = r'(?i)\d+h[\w\s]*(?=¤)'    # Reg. exp. to match dates
+        # runtime = re.search(runtime, data)  # Look for runtime pattern in data
+        # runtime = runtime.group() if runtime else None
+
+        # # 2. Change runtime from alphanumeric format to minutes
+        # #duration = dateparser.parse(runtime)
+        # print('#############################################################')
+        # print(runtime)
+        # if runtime:
+        #     runtime = re.sub(r'(?i)(?<=\d+)h\s*', '*60+', runtime)
+        #     print(runtime)
+        #     runtime = re.sub(r'\p{L}*|\s+', '', runtime)
+        #     print(runtime)
+        #     print(eval(runtime))
+        # # print(type(duration))
+        # # print(dir(duration))
+        # # print(duration.hour)
+        # # print(duration.minute)
+        # print('#############################################################')
+        # #duration = duration.total_seconds() // 60 if duration else None
+        # self.adapter['duration_min'] = "duration"
 
 
+        # self.adapter['metadata'] = data
+        # # FUNCTION OUTPUT (returns updated item)
+        # #return item
+        # RECOVERS ORIGINAL 'metadata' FIELD FOR POST PROCESSING CHECK
         self.adapter['metadata'] = data
-        # FUNCTION OUTPUT (returns updated item)
-        return item
+
+
+    def extract_movie_date(self):
+        """
+        Extracts movie release date from scraped data, parses and reformats it.
+
+        Additionnaly, 'metadata' field of the scrapy 'Item' is updated to drop
+        the extracted date so that subsequent extractions (runtime, genre, etc)
+        become a little bit easier... 
+        """
+        # # MOVIE RELEASE DATE
+        # # 1. Extracting the movie release date info
+        # date = r'(?i)\d+\s+\p{L}+\s+\d{4}'    # Reg. exp. to match dates 
+        # date = re.search(date, data)          # Look for dates in the data
+        # date = date.group() if date else None # Extract date if any or set None
+
+        # # 2. Formating the movie release date + Item update
+        # isodate = dateparser.parse(date)      # Instanciates a date object
+        # isodate = isodate.strftime('%Y/%m/%d') if date else None
+        # self.adapter['release_date'] = isodate
+        pass
