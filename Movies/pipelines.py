@@ -188,6 +188,11 @@ class MovieScraperPipeline:
         self.extract_movie_date()            # Retrieves and reformat date
         self.extract_runtime()               # Retrieves and reformat duration
 
+        print("**************************************************************")
+        toto = re.findall(r'\p{L}+', self.adapter.get('metadata'))
+        print(toto)
+        print("**************************************************************")
+
         # RECOVERS ORIGINAL 'metadata' FIELD (for post processing check only)
         self.adapter['metadata'] = data
 
