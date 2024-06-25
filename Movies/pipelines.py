@@ -70,6 +70,21 @@ class MovieScraperPipeline:
         # FUNCTION OUTPUT
         return string.group() if string else None
 
+    def alter_scrap(self, field, regex, string=''):
+        """
+        Change the given field in place using a regex and a replacement string.
+
+        Purpose is not to alter the field name but the related sccraped data.
+        This function basically implements 'search' method from 'regex' module.
+
+        Arguments:
+            field  (str): Label (or name) of the scrapy Item to update.
+            regex  (str): Regular expression to use whithin 'search' method.
+            string (str): Replacement string to use to replace regex matches.
+        """
+
+        self.adapter[field] = re.sub(regex, string, self.adapter.get(field))
+
 
     # METHODS DEDICATED TO ITEM CLEANING
     def process_item(self, item, spider):
@@ -171,38 +186,10 @@ class MovieScraperPipeline:
 
         # EXTRACTION & CLEANING PROCESS
         self.extract_movie_date()            # Retrieves and reformat date
+        self.extract_runtime()               # Retrieves and reformat duration
 
-        # # MOVIE RUNTIME
-        # # 1. Extracting the movie runtile (i.e. duration)
-        # runtime = r'(?i)\d+h[\w\s]*(?=¤)'    # Reg. exp. to match dates
-        # runtime = re.search(runtime, data)  # Look for runtime pattern in data
-        # runtime = runtime.group() if runtime else None
-
-        # # 2. Change runtime from alphanumeric format to minutes
-        # #duration = dateparser.parse(runtime)
-        # print('#############################################################')
-        # print(runtime)
-        # if runtime:
-        #     runtime = re.sub(r'(?i)(?<=\d+)h\s*', '*60+', runtime)
-        #     print(runtime)
-        #     runtime = re.sub(r'\p{L}*|\s+', '', runtime)
-        #     print(runtime)
-        #     print(eval(runtime))
-        # # print(type(duration))
-        # # print(dir(duration))
-        # # print(duration.hour)
-        # # print(duration.minute)
-        # print('#############################################################')
-        # #duration = duration.total_seconds() // 60 if duration else None
-        # self.adapter['duration_min'] = "duration"
-
-
-        # self.adapter['metadata'] = data
-        # # FUNCTION OUTPUT (returns updated item)
-        # #return item
-        # RECOVERS ORIGINAL 'metadata' FIELD FOR POST PROCESSING CHECK
+        # RECOVERS ORIGINAL 'metadata' FIELD (for post processing check only)
         self.adapter['metadata'] = data
-
 
     def extract_movie_date(self):
         """
@@ -212,14 +199,46 @@ class MovieScraperPipeline:
         the extracted date so that subsequent extractions (runtime, genre, etc)
         become a little bit easier... 
         """
-        # # MOVIE RELEASE DATE
-        # # 1. Extracting the movie release date info
-        # date = r'(?i)\d+\s+\p{L}+\s+\d{4}'    # Reg. exp. to match dates 
-        # date = re.search(date, data)          # Look for dates in the data
-        # date = date.group() if date else None # Extract date if any or set None
 
-        # # 2. Formating the movie release date + Item update
-        # isodate = dateparser.parse(date)      # Instanciates a date object
-        # isodate = isodate.strftime('%Y/%m/%d') if date else None
-        # self.adapter['release_date'] = isodate
-        pass
+        # BASIC SETTINGS & INITIALIZATION
+        meta = 'metadata'
+
+        # MOVIE RELEASE DATE - Stage 1 - Extracting alphanumeric date
+        regx = r'(?i)\d+\s+\p{L}+\s+\d{4}'                  # Date pattern
+        date = self.get_first(regx, self.adapter.get(meta)) # Get date or none
+
+        # MOVIE RELEASE DATE - Stage 2 - reformating date + Item update
+        isodate = dateparser.parse(date)           # Instanciates a date object
+        isodate = isodate.strftime('%Y/%m/%d') if date else None # Formats date
+        self.adapter['release_date'] = isodate
+        
+        # UPDATE 'metadata' FIELD (For easier subsequent cleaning process only)
+        self.alter_scrap(field=meta, regex=f'{date if date else ""}')
+
+    def extract_runtime(self):
+        """
+        Extracts movie duration from scraped data, parses and reformats it.
+
+        Additionnaly, 'metadata' field of the scrapy 'Item' is updated to drop
+        the extracted duration so that subsequent extractions (genre, medium)
+        become a little bit easier... 
+        """
+
+        # BASIC SETTINGS & INITIALIZATION
+        meta = 'metadata'
+
+        # MOVIE RUNTIME - Stage 1 - Extracting alphanumeric runtime (or length)
+        regex = r'(?i)\d+h[\w\s]*(?=¤)'                         # Runtime regex
+        runtime = self.get_first(regex, self.adapter.get(meta)) # Get duration
+
+        # MOVIE RUNTIME - Stage 2 - UPDATE 'metadata' FIELD (delete runtime)
+        self.alter_scrap(field=meta, regex=f'{runtime if runtime else ""}')
+
+        # MOVIE RUNTIME - Stage 3 - Reformating runtime to get it in minutes
+        if runtime:
+            runtime = re.sub(r'(?i)(?<=\d+)h\s*', '*60+', runtime)
+            runtime = re.sub(r'\p{L}*|\s+', '', runtime)
+            runtime = int(eval(runtime))
+
+        # SCRAPY 'ITEM' UPDATE 
+        self.adapter['runtime_min'] = runtime
