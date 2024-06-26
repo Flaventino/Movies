@@ -1,16 +1,15 @@
-# Define your item pipelines here
-#
-# Don't forget to add your pipeline to the ITEM_PIPELINES setting
-# See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-
-
-# useful for handling different item types with a single interface
-import dateparser
 import regex as re
+import dateparser, nltk
 from itemadapter import ItemAdapter
 
 
+# Download the stopwords corpus
+nltk.download('stopwords')
+
+# PIPELINE CLASSES
 class MovieScraperPipeline:
+    fr_stopset = set(nltk.corpus.stopwords.words('french'))       # Makes a list of french words to stop (i.e. drop)
+
     # SETTER METHODS
     def set_genre_country(self, spider):
         """
@@ -185,18 +184,14 @@ class MovieScraperPipeline:
         self.adapter['metadata'] = data      # Updates Item 'metadata' field
 
         # EXTRACTION & CLEANING PROCESS
-        self.extract_movie_date()            # Retrieves and reformat date
-        self.extract_runtime()               # Retrieves and reformat duration
-
-        print("**************************************************************")
-        toto = re.findall(r'\p{L}+', self.adapter.get('metadata'))
-        print(toto)
-        print("**************************************************************")
+        self.get_movie_date()                # Retrieves and reformat date
+        self.get_runtime()                   # Retrieves and reformat duration
+        self.get_genres_and_release_places() # Extracts clean target data
 
         # RECOVERS ORIGINAL 'metadata' FIELD (for post processing check only)
         self.adapter['metadata'] = data
 
-    def extract_movie_date(self):
+    def get_movie_date(self):
         """
         Extracts movie release date from scraped data, parses and reformats it.
 
@@ -220,7 +215,7 @@ class MovieScraperPipeline:
         # UPDATE 'metadata' FIELD (For easier subsequent cleaning process only)
         self.alter_scrap(field=meta, regex=f'{date if date else ""}')
 
-    def extract_runtime(self):
+    def get_runtime(self):
         """
         Extracts movie duration from scraped data, parses and reformats it.
 
@@ -241,9 +236,30 @@ class MovieScraperPipeline:
 
         # MOVIE RUNTIME - Stage 3 - Reformating runtime to get it in minutes
         if runtime:
-            runtime = re.sub(r'(?i)(?<=\d+)h\s*', '*60+', runtime)
-            runtime = re.sub(r'\p{L}*|\s+', '', runtime)
-            runtime = int(eval(runtime))
+            runtime = re.sub(r'(?i)(?<=\d+)h\s*', '*60+', runtime) # Hour * 60
+            runtime = re.sub(r'\p{L}*|\s+', '', runtime)           # keep digit
+            runtime = int(eval(runtime))                           # Calculates
 
         # SCRAPY 'ITEM' UPDATE 
         self.adapter['runtime_min'] = runtime
+
+    def get_genres_and_release_places(self):
+        """
+        Extracts pure and clean genre(s) and release-place from scrapped data.
+        """
+
+        # REMOVES ANY NON RELEVANT WORDS FROM RAW DATA (i.e. drops stop words)
+        regex = "|".join([f'(?<=\W+){itm}(?=\W+)' for itm in self.fr_stopset])
+        self.alter_scrap(field='metadata', regex=f'(?i){regex}')
+
+        # EXTRACTS ALL SINGLE WORDS OR GROUPS OF WORDS SEPARATED BY SPACES.
+        words = re.findall(r'[\p{L} ]+', self.adapter.get('metadata'))
+        words = [word.strip() for word in words]            # Drop extra spaces
+
+        # GET LIST OF CLEAN GENRES AND CLEAN RELEASE PLACES
+        genres = "¤".join(set(words) & self.genre)
+        places = "¤".join(set(words) - self.genre)
+
+        # UPDATES SCRAPY `ITEM` FIELDS FOR GENRE AND RELEASE PLACES
+        self.adapter['categories'] = genres if len(genres) > 0 else None
+        self.adapter['release_place'] = places if len(places) > 0 else None
