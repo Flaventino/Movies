@@ -11,35 +11,37 @@ class MoviesItem(scrapy.Item):
     # name = scrapy.Field()
 
     # MOVIE
-    title = scrapy.Field()
-    title_fr = scrapy.Field()
-    synopsis = scrapy.Field()
-    film_poster = scrapy.Field()
+    title = scrapy.Field()              # Scraped data
+    title_fr = scrapy.Field()           # Scraped data
+    synopsis = scrapy.Field()           # Scraped data
+    film_poster = scrapy.Field()        # Scraped data
 
 
     # MOVIE CREATORS
-    creators = scrapy.Field()
-    directors = scrapy.Field()
-    screenwriters = scrapy.Field()
+    creators = scrapy.Field()           # Scraped data
+    directors = scrapy.Field()          # >> Data created after scraping stage
+    screenwriters = scrapy.Field()      # >> Data created after scraping stage
 
     # MOVIE METADATA
-    metadata = scrapy.Field()
-    categories = scrapy.Field()
-    runtime_min = scrapy.Field()
-    release_date = scrapy.Field()
-    release_place = scrapy.Field()
+    metadata = scrapy.Field()           # Scraped data
+    categories = scrapy.Field()         # >> Data created after scraping stage
+    runtime_min = scrapy.Field()        # >> Data created after scraping stage
+    release_date = scrapy.Field()       # >> Data created after scraping stage
+    release_place = scrapy.Field()      # >> Data created after scraping stage
 
     # MOVIE TECHNICAL DATA
-    technical = scrapy.Field()
-    visa = scrapy.Field()
-    types = scrapy.Field()
-    color = scrapy.Field()
-    budget = scrapy.Field()
-    awards = scrapy.Field()
-    languages = scrapy.Field()
-    distributors = scrapy.Field()
-    nationalities = scrapy.Field()
-    production_year = scrapy.Field()
+    #technical = scrapy.Field()
+    tech_data = scrapy.Field()          # Scraped data
+    tech_headers = scrapy.Field()       # Scraped data
+    visa = scrapy.Field()               # >> Data created after scraping stage
+    types = scrapy.Field()              # >> Data created after scraping stage
+    color = scrapy.Field()              # >> Data created after scraping stage
+    budget = scrapy.Field()             # >> Data created after scraping stage
+    awards = scrapy.Field()             # >> Data created after scraping stage
+    languages = scrapy.Field()          # >> Data created after scraping stage
+    distributors = scrapy.Field()       # >> Data created after scraping stage
+    nationalities = scrapy.Field()      # >> Data created after scraping stage
+    production_year = scrapy.Field()    # >> Data created after scraping stage
 
     # MOVIE RATINGS
     ratings = scrapy.Field()

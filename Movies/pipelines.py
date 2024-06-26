@@ -8,7 +8,8 @@ nltk.download('stopwords')
 
 # PIPELINE CLASSES
 class MovieScraperPipeline:
-    fr_stopset = set(nltk.corpus.stopwords.words('french'))       # Makes a list of french words to stop (i.e. drop)
+    # Makeing a python `set` of french words to stop (i.e. drop)
+    fr_stopset = set(nltk.corpus.stopwords.words('french'))
 
     # SETTER METHODS
     def set_genre_country(self, spider):
@@ -38,7 +39,7 @@ class MovieScraperPipeline:
 
     def flatten_raw_string(self, data: str):
         """
-        Replaces all control characters with '¤' and removes all extra spaces.
+        Changes all control characters into '¤'. Drops comas & extra spaces.
 
         Arguments:
             data (str): Dirty string mixing word groups to extract with some
@@ -49,7 +50,7 @@ class MovieScraperPipeline:
 
         # FLATTENING & CLEANING PROCESS
         data = re.sub(r'[^\S ]+', '¤', data)    # Replaces any controls by '¤'
-        data = re.sub(r'\s+', ' ', data)        # Drops all extra spaces
+        data = re.sub(r'[\s,]+', ' ', data)        # Drops all extra spaces
 
         # FUNCTION OUTPUT
         return data
@@ -101,6 +102,7 @@ class MovieScraperPipeline:
         self.clean_film_poster() # Movie poster (get clean url)
         self.clean_creators()    # Extract directors and writers
         self.clean_metadata()    # Extract date, duration and genres
+        self.clean_technnical()  # Extract distributors, origin, languages etc.
 
 
         print("##########################################################")
@@ -173,6 +175,7 @@ class MovieScraperPipeline:
             # Updates scrapy Item fields whith clean value (or simply 'None').
             self.adapter[field] = value if len(value) > 0 else None
 
+    # Sub section dedicated to `metadata` cleaning
     def clean_metadata(self):
         """
         Extract clean date, medium, duration and genre of movie from metadata.
@@ -263,3 +266,42 @@ class MovieScraperPipeline:
         # UPDATES SCRAPY `ITEM` FIELDS FOR GENRE AND RELEASE PLACES
         self.adapter['categories'] = genres if len(genres) > 0 else None
         self.adapter['release_place'] = places if len(places) > 0 else None
+
+    # Sub section dedicated to `technical` info cleaning
+    def clean_technnical(self):
+        """
+        Extracts required technical details from related scraped data.
+        """
+        # BASIC SETTINGS & INITIALIZATION
+        data, heads = 'tech_data', 'tech_headers'
+        fields = {'visa': 'visa',
+                  'types': 'film',
+                  'color': 'couleur',
+                  'budget': 'budget',
+                  'awards': 'r\p{L}compense',
+                  'languages': 'langue',
+                  'distributors': 'distributeur',
+                  'nationalities': 'nation',
+                  'production_year': 'ann\p{L}e'}
+
+        # IN-PLACE CLEANING OF SCRAPED DATA (i.e. controls, extra spaces, comas)
+        for itm in (data, heads):
+            self.adapter[itm] = self.flatten_raw_string(self.adapter.get(itm))
+
+        # IMPLEMENTING A SEARCH STOPPER
+        stopper = self.adapter.get(heads).split('¤')
+        stopper = "|".join(set([header.strip('¤ ') for header in stopper]))
+        #stopper = "|".join(f'{}' for itm in stopper)
+        print("##############################################################")
+        #print(set([word.strip('¤ ') for word in self.adapter.get(heads).split('¤')]))
+        print(stopper)
+
+        # EXTRACTING & CLEANING REQUIRED FIELDS
+        for field, word in fields.items():
+            reg = '(?i)\|*\p{L}*' + word + '\p{L}*\|*'
+            key = re.search(reg, stopper)
+            key = key.group().strip('| ') if key else None
+            print(key)
+        
+        print("##############################################################")
+    #     pass

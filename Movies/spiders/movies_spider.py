@@ -79,6 +79,7 @@ class MoviesSpiderSpider(scrapy.Spider):
 
         # BASIC SETTINGS & INITIALIZATION OR FEATURES
         grab = lambda x: '¤'.join(response.xpath(x).getall())
+        tech ="//section[contains(@class, 'technical')]"
         meta = "//div[contains(@class, 'card') and contains(@class, 'entity')]"
         casting_url = grab("//a[contains(@title, 'Casting')]/@href")
 
@@ -90,7 +91,8 @@ class MoviesSpiderSpider(scrapy.Spider):
             'synopsis': "//section[starts-with(@id, 'synopsis')]//p",
             'creators': f"{meta}//div[contains(@class, 'oneline')]",
             'metadata': f"{meta}//div[contains(@class, 'info')]",
-            'technical': "//section[contains(@class, 'technical')]"}
+            'tech_data': f"{tech}//div[@class='item']",
+            'tech_headers': f"{tech}//span[contains(@class, 'light')]"}
 
         # IMPLEMENTING DATA PATHS FOR TAG ATTRIBUTES
         attributes = {'film_poster': f"{meta}//figure//img/@src"}
