@@ -8,8 +8,8 @@ nltk.download('stopwords')
 
 # PIPELINE CLASSES
 class MovieScraperPipeline:
-    # # Makeing a python `set` of french words to stop (i.e. drop)
-    # fr_stopset = set(nltk.corpus.stopwords.words('french'))
+    # Makeing a python `set` of french words to stop (i.e. drop)
+    fr_stopset = set(nltk.corpus.stopwords.words('french'))
 
     # SETTER METHODS
     def get_spider_attr(self, spider):
@@ -33,49 +33,8 @@ class MovieScraperPipeline:
             # CLONING STAGE
             setattr(self, attribute, values)
 
-    # def set_genre_country(self, spider):
-    #     """
-    #     Sets the “genre” and “country” attributes (“set” type) of the pipeline.
 
-    #     Raw data extracted from enponyme but string type spider's attributes.
-    #     """
-    #     # ADDING LISTS OF COUNTRIES AND GENRES TO THE CLEANUP PIPELINE
-    #     self.genre = self.convert_to_set(spider.genre)
-    #     self.country = self.convert_to_set(spider.country)
-
-
-    # # GENERAL AND/OR COMMON DATA CLEANING METHODS
-    # def convert_to_set(self, data: str):
-    #     """
-    #     Finds all word groups whithin a given string and returns a set.
-    #     """
-
-    #     # EXTRACTION & CLEANING PROCESS
-    #     data = self.flatten_raw_string(data)   # Cleans controls & extra spaces
-    #     data = re.sub(r'¤[\W\d]+¤', '¤', data) # Drops non relevant characters
-    #     data = data.strip('¤').split('¤')      # Lists ready-to-use items
-
-    #     # FUNCTION OUTPUT (returns a python set of the clean extracted items)
-    #     return set(data)
-
-    # def flatten_raw_string(self, data: str):
-    #     """
-    #     Changes all control characters into '¤'. Drops comas & extra spaces.
-
-    #     Parameter(s):
-    #         data (str): Dirty string mixing word groups to extract with some
-    #                     ugly control characters and/or extra spaces.
-
-    #     Returns: a flatten string with no controls neither extra spaces.
-    #     """
-
-    #     # FLATTENING & CLEANING PROCESS
-    #     data = re.sub(r'[^\S ¤,]+', '¤', data)   # Replaces any controls by '¤'
-    #     data = re.sub(r'\s+', ' ', data)        # Drops all extra spaces
-
-    #     # FUNCTION OUTPUT
-    #     return data
-
+    # GENERAL AND/OR COMMON DATA CLEANING METHODS
     def get_first(self, regex, string):
         """
         Parses given string with given regex. Returns 1st match or None.
@@ -116,33 +75,28 @@ class MovieScraperPipeline:
         # FUNCTION OUTPUT
         return set(string) if unique else string
 
-    # def alter_scrap(self, field, regex, string=''):
-    #     """
-    #     Change the given field in place using a regex and a replacement string.
-
-    #     Purpose is not to alter the field name but the related sccraped data.
-    #     This function basically implements 'search' method from 'regex' module.
-
-    #     Parameter(s):
-    #         field  (str): Label (or name) of the scrapy Item to update.
-    #         regex  (str): Regular expression to use whithin 'search' method.
-    #         string (str): Replacement string to use to replace regex matches.
-    #     """
-
-    #     self.adapter[field] = re.sub(regex, string, self.adapter.get(field))
-
-    def flatten(self, txt: str):
+    def flatten(self, txt: str, commas: bool = True):
         """
         Removes controls characters, commas (if non numeric), and extra spaces.
 
         Parameter(s):
-            txt (str): String to be cleaned
+            txt     (str): String to be cleaned
+            commas (bool): Whether to drop any commas (float numbers ignored)
 
         Returns: A clean string (cleaned version of the given string)
         """
 
-        regex = r'\s*(?:[^\S ]|¤|(?<!\d),(?!\d))+\s*'       # Main regex
-        return re.sub(r'\s+', ' ', re.sub(regex, '¤', txt)) # Cleaning process
+        # SETTING UP REGEXES TO BE APPLIED SUCCESSIVELY
+        regexes = [r'(?<!\d),(?!\d)'] if commas else [] # Commas management
+        regexes += [r'[^ \S]', r'\s*¤+\s*', r'¤+\W*¤+'] # Ctrl & Irrelev. chars
+
+        # FLATTENING & CLEANING PROCESS:
+        for regex in regexes:
+            txt = re.sub(regex, '¤', txt)
+
+        # FUNCTION OUTPUT
+        return re.sub(r'\s+', ' ', txt) # Returns flatten withiut extra spaces
+
 
 
     # METHODS DEDICATED TO ITEM CLEANING
@@ -151,34 +105,17 @@ class MovieScraperPipeline:
         MONITORING FUNCTION TO DRIVE THE CLEANING PROCESS OF SCRAPED DATA.
         """
 
-        # # BASIC SETTINGS & INITIALIZATION
-        # #_ = None if hasattr(self, 'adapter') else self.adapter := ItemAdapter(item)
-        # _ = None if hasattr(self, 'genre') else self.set_genre_country(spider)
-        # _ = None if hasattr(self, 'adapter') else setattr(self, 'adapter', ItemAdapter(item))
+        # BASIC SETTINGS & INITIALIZATION
         self.adapter = ItemAdapter(item)
-        #_ = None if hasattr(self, 'genre') else self.get_spider_attr(spider)
-        
-        if not hasattr(self, 'genre'):
-            self.get_spider_attr(spider)
-            print(repr(spider.genre))
-            # print(f"\n>>>{self.flatten(spider.genre)}")
-            # print()
-            # print()
-
-            print(self.genre)
-            print()
-            print(self.country)
-            # print(repr(spider.country))
-            # print(f"\n>>>{self.flatten(spider.country)}")
-            #setattr(self, 'genre', spider)print(repr(spider.genre))
+        _ = None if hasattr(self, 'genre') else self.get_spider_attr(spider)
 
         # DATA CLEANING PIPELINE
         self.clean_titles()      # Cleaning of the french and original titles
         # self.clean_synopsis()  # Synopsis cleaning --USELESS--
         self.clean_film_poster() # Movie poster (get clean url)
         self.clean_creators()    # Extract directors and writers
-        #self.clean_metadata()    # Extract release date and place, genres, etc.
-        # self.clean_technnical()  # Extract distributors, origin, languages etc.
+        self.clean_metadata()    # Extract release date and place, genres, etc.
+        self.clean_technnical()  # Extract distributors, origin, languages etc.
 
 
         print("##########################################################")
@@ -186,7 +123,10 @@ class MovieScraperPipeline:
         for key, value in item.items():
             if value:
                 print(f'{key}:\n{repr(value)}')
-                print(f">>>{self.flatten(self.adapter.get(key))}")
+                try:
+                    print(f">>>{self.flatten(self.adapter.get(key))}")
+                except:
+                    pass
                 print()
                 print()
         #print(dir(response.meta['item']))
@@ -253,141 +193,164 @@ class MovieScraperPipeline:
         Parses metadata to get clean date, medium, duration and genre of movie.
         """
 
+        # BASIC SETTINGS & INITIALIZATION
+        field = 'metadata'
+
+        # CLEANS 'metadata' FIELD IN-PLACE BEFORE EXTRACTING DETAILED DATA
+        self.adapter[field] = self.flatten(self.adapter.get(field))
+
         # INITIALIZATION
     #     data = self.adapter.get('metadata')  # Retrieves scraped data
     #     data = self.flatten_raw_string(data) # Cleans controls & extra spaces
     #     self.adapter['metadata'] = data      # Updates Item 'metadata' field
 
-    #     # EXTRACTION & CLEANING PROCESS
-    #     self.get_movie_date()                # Retrieves and reformat date
-    #     self.get_runtime()                   # Retrieves and reformat duration
-    #     self.get_genres_and_release_places() # Extracts clean target data
+        # EXTRACTION & CLEANING PROCESS
+        backup = self.adapter.get(field) # Creates raw data backup (see below)
+        self.get_movie_date()            # Retrieves and reformat release date
+        self.get_runtime()               # Retrieves and reformat movie runtime
+        self.get_genres()                # Retrieves all genres
+        self.get_place()                 # Rectrieves release place
 
-    #     # RECOVERS ORIGINAL 'metadata' FIELD (for post processing check only)
-    #     self.adapter['metadata'] = data
-        pass
+        # RECOVERS ORIGINAL 'metadata' FIELD (for post processing check only)
+        self.adapter[field] = backup
 
-    # def get_movie_date(self):
-    #     """
-    #     Extracts movie release date from scraped data, parses and reformats it.
+    def get_movie_date(self):
+        """
+        Extracts the release date from the scraped data and reformats it (min).
 
-    #     Additionnaly, 'metadata' field of the scrapy 'Item' is updated to drop
-    #     the extracted date so that subsequent extractions (runtime, genre, etc)
-    #     become a little bit easier... 
-    #     """
+        Additionnaly, the 'metadata' field is realtime updated to drop the
+        freshly extracted date making subsequent extractions easier. 
+        """
 
-    #     # BASIC SETTINGS & INITIALIZATION
-    #     meta = 'metadata'
+        # BASIC SETTINGS & INITIALIZATION
+        meta, isodate = 'metadata', '%Y/%m/%d'
 
-    #     # MOVIE RELEASE DATE - Stage 1 - Extracting alphanumeric date
-    #     regx = r'(?i)\d+\s+\p{L}+\s+\d{4}'                  # Date pattern
-    #     date = self.get_first(regx, self.adapter.get(meta)) # Get date or none
+        # MOVIE RELEASE DATE - STAGE 1 - Extracting alphanumeric date
+        regx = r'\d+\s*\p{L}+\s*\d{4}'                      # Date pattern
+        date = self.get_first(regx, self.adapter.get(meta)) # Get date or none
 
-    #     # MOVIE RELEASE DATE - Stage 2 - reformating date + Item update
-    #     isodate = dateparser.parse(date)           # Instanciates a date object
-    #     isodate = isodate.strftime('%Y/%m/%d') if date else None # Formats date
-    #     self.adapter['release_date'] = isodate
-        
-    #     # UPDATE 'metadata' FIELD (For easier subsequent cleaning process only)
-    #     self.alter_scrap(field=meta, regex=f'{date if date else ""}')
+        # MOVIE RELEASE DATE - STAGE 2 - Reformating date + scrapy Item update
+        date = dateparser.parse(date) if date else None # Creates a date parser
+        date = date.strftime(isodate) if date else None # Changes date format
+        self.adapter['release_date'] = date             # Update scrapy item
 
-    # def get_runtime(self):
-    #     """
-    #     Extracts movie duration from scraped data, parses and reformats it.
+        # UPDATE 'metadata' FIELD (For easier subsequent cleaning process only)
+        self.adapter[meta] = re.sub(regx, '', self.adapter.get(meta))
 
-    #     Additionnaly, 'metadata' field of the scrapy 'Item' is updated to drop
-    #     the extracted duration so that subsequent extractions (genre, medium)
-    #     become a little bit easier... 
-    #     """
+    def get_runtime(self):
+        """
+        Extracts movie duration from scraped data, parses and reformats it.
 
-    #     # BASIC SETTINGS & INITIALIZATION
-    #     meta = 'metadata'
+        Additionnaly, the 'metadata' field is realtime updated to drop the
+        freshly extracted duration making subsequent extractions easier.
+        """
 
-    #     # MOVIE RUNTIME - Stage 1 - Extracting alphanumeric runtime (or length)
-    #     regex = r'(?i)\d+h[\w\s]*(?=¤)'                         # Runtime regex
-    #     runtime = self.get_first(regex, self.adapter.get(meta)) # Get duration
+        # BASIC SETTINGS & INITIALIZATION
+        meta = 'metadata'
 
-    #     # MOVIE RUNTIME - Stage 2 - UPDATE 'metadata' FIELD (delete runtime)
-    #     self.alter_scrap(field=meta, regex=f'{runtime if runtime else ""}')
+        # MOVIE DURATION - STAGE 1 - Extracting alphanumeric duration
+        regx = r'(?i)\d+\s*h\s*\d+[\p{L}\s]*(?=¤)'          # Duration pattern
+        time = self.get_first(regx, self.adapter.get(meta)) # Get time or none
 
-    #     # MOVIE RUNTIME - Stage 3 - Reformating runtime to get it in minutes
-    #     if runtime:
-    #         runtime = re.sub(r'(?i)(?<=\d+)h\s*', '*60+', runtime) # Hour * 60
-    #         runtime = re.sub(r'\p{L}*|\s+', '', runtime)           # keep digit
-    #         runtime = int(eval(runtime))                           # Calculates
+        # MOVIE DURATION - STAGE 2 - Reformating duration
+        if time:
+            expr = r'(?i)(?<=\d+)\s*h\s*'           # Regex to match 'h'
+            time = re.sub(expr, '*60+', time)       # 'h' becomes '*60'
+            time = re.sub(r'[\p{L}\s]*', '', time)  # Drops any leters & spaces
+            time = int(eval(time))                  # Computes length (minutes)
 
-    #     # SCRAPY 'ITEM' UPDATE 
-    #     self.adapter['runtime_min'] = runtime
+        # MOVIE DURATION - STAGE 2 - Scrapy Item update
+        self.adapter['runtime_min'] = time         # Update scrapy item
 
-    # def get_genres_and_release_places(self):
-    #     """
-    #     Extracts pure and clean genre(s) and release-place from scrapped data.
-    #     """
+        # UPDATE 'metadata' FIELD (For easier subsequent cleaning process only)
+        self.adapter[meta] = re.sub(regx, '', self.adapter.get(meta))
 
-    #     # REMOVES ANY NON RELEVANT WORDS FROM RAW DATA (i.e. drops stop words)
-    #     regex = "|".join([f'(?<=\W+){itm}(?=\W+)' for itm in self.fr_stopset])
-    #     self.alter_scrap(field='metadata', regex=f'(?i){regex}')
+    def get_genres(self):
+        """
+        Retrieves all genres of the movie being scraped.
 
-    #     # EXTRACTS ALL SINGLE WORDS OR GROUPS OF WORDS SEPARATED BY SPACES.
-    #     words = re.findall(r'[\p{L} ]+', self.adapter.get('metadata'))
-    #     words = [word.strip() for word in words]            # Drop extra spaces
+        Additionnaly, the 'metadata' field is realtime updated to drop the
+        freshly extracted duration making subsequent extractions easier.
 
-    #     # GET LIST OF CLEAN GENRES AND CLEAN RELEASE PLACES
-    #     genres = "¤".join(set(words) & self.genre)
-    #     places = "¤".join(set(words) - self.genre)
+        -- ALL POSSIBLE GENRE LISTS MUST HAVE BEEN SCRAPED BEFORE --
+        """
+        # BASIC SETTINGS & INITIALIZATION
+        meta, field = 'metadata', 'categories'
 
-    #     # UPDATES SCRAPY `ITEM` FIELDS FOR GENRE AND RELEASE PLACES
-    #     self.adapter['categories'] = genres if len(genres) > 0 else None
-    #     self.adapter['release_place'] = places if len(places) > 0 else None
+        # MOVIE GENRES - Extraction + scrcapy Item update
+        regex = r"|".join(self.genre)                      # Genres pattern
+        genres = re.findall(regex, self.adapter.get(meta)) # Get time or none
+        genres = '¤'.join(set(genres)) if genres else None # Merging result
+        self.adapter[field] = genres if genres else None   # Saving
 
-    # # Sub section dedicated to `technical` info cleaning
-    # def clean_technnical(self):
-    #     """
-    #     Extracts required technical details from related scraped data.
-    #     """
-    #     # BASIC SETTINGS & INITIALIZATION
-    #     data, heads = 'tech_data', 'tech_headers'
-    #     fields = {'visa': 'visa',
-    #               'types': 'film',
-    #               'color': 'couleur',
-    #               'budget': 'budget',
-    #               'awards': 'r\p{L}compense',
-    #               'languages': 'langue',
-    #               'distributors': 'distributeur',
-    #               'nationalities': 'nation',
-    #               'production_year': 'ann\p{L}e'}
+        # UPDATE 'metadata' FIELD (For easier subsequent cleaning process only)
+        self.adapter[meta] = re.sub(regex, '', self.adapter.get(meta))
 
-    #     # IN-PLACE CLEANING OF SCRAPED DATA (controls, extra spaces and comas)
-    #     for itm in (data, heads):
-    #         self.adapter[itm] = self.flatten_raw_string(self.adapter.get(itm))
+    def get_place(self):
+        """
+        Retrieves the release place(s) of the movie being scraped.
+        """
 
-    #     # EXTRACTING HEADERS AS SINGLE STRING (i.e. category names)
-    #     headers = re.self.adapter.get(heads).split('¤')
-    #     #headers = set([re.sub(r'^[\s¤]+|[\s¤]+$', '', itm) for itm in headers])
-    #     # IMPLEMENTING A SEARCH STOPPER
-    #     # stopper = self.adapter.get(heads).split('¤')
-    #     # stopper = "|".join(set([header.strip('¤ ') for header in stopper]))
-    #     # #stopper = "|".join(f'{}' for itm in stopper)
-    #     print("##############################################################")
-    #     print(f"{self.adapter.get(heads) = }")
-    #     # #print(set([word.strip('¤ ') for word in self.adapter.get(heads).split('¤')]))
-    #     # print(f"{stopper = }")
+        # BASIC SETTINGS & INITIALIZATION
+        md = 'metadata'
 
-    #     # # EXTRACTING & CLEANING REQUIRED FIELDS
-    #     # data = self.adapter.get(data)
-    #     # print(f"{data = }")
-    #     # for field, word in fields.items():
-    #     #     #reg = '(?i)\|*\p{L}*' + word + '\p{L}*\|*'
-    #     #     reg = f"(?i)[\p{'L'}° ]*{word}[\p{'L'}° ]*"
-    #     #     key = re.search(reg, stopper)
-    #     #     key = key.group().strip() if key else None
-    #     #     print(f"{reg = }  >>>>  {key = }")
-    #     #     if key:
-    #     #         value = re.search(f'(?<={key})[¤\w ]+(?={stopper})', data)
-    #     #         value = value.group() if value else None
-    #     #     else:
-    #     #         value = None
-    #     #     print(value)
-        
-    #     print("##############################################################")
-    # #     pass
+        # REMOVES ANY NON RELEVANT WORDS FROM RAW DATA (i.e. drops stop words)
+        regx = '(?:^|(?<=\W)){}(?=\W|$)'.format                   # Unit regex
+        regx = "|".join([regx(word) for word in self.fr_stopset]) # Full regex
+        self.adapter[md] = re.sub(regx, '', self.adapter.get(md)) # Drops words
+
+        # EXTRACTING RELEASE PLACE(S)
+        places = self.get_all(regex=r'[\p{L}\s]+', string=self.adapter.get(md))
+
+        # UPDATE OF THE SCRAPY ITEM
+        self.adapter['release_place'] = '¤'.join(places) if places else None
+
+    # Sub section dedicated to `technical` info cleaning
+    def clean_technnical(self):
+        """
+        Extracts technical details from scraped data (origin, distributor, etc).
+        """
+
+        # BASIC SETTINGS & INITIALIZATION
+        data = 'tech_data'
+        heads = 'tech_headers'
+        fields = {'visa': 'visa',
+                  'types': 'film',
+                  'color': 'couleur',
+                  'budget': 'budget',
+                  'awards': 'r.compense',
+                  'languages': 'langue',
+                  'distributors': 'distributeur',
+                  'nationalities': 'nation',
+                  'production_year': 'ann.e'}
+
+        # IN-PLACE CLEANING OF SCRAPED DATA BEFORE DETAILS EXTRACTION
+        # >>> Remmoves any controls, comas (if not numeric), and extra spaces
+        for field in (data, heads):
+            self.adapter[field] = self.flatten(self.adapter.get(field))
+
+        # GETS CLEAN HEADERS SET
+        # >>> To make the recovery of related data easier and more robust
+        headers = self.get_all(r'[^¤]*', self.adapter.get(heads)) # Headers set
+
+        # EXTRACTION & CLEANING PROCESS FIELD BY FIELD
+        regex = r'(?i)(?:^|[^¤])*{}(?:[^¤]|$)*'.format
+        regmask = lambda x: "|".join(header for header in (headers - set([x])))
+        for field, header in fields.items():
+            # EXTRACTS AND CLEANS THE HEADER ASSOCIATED WITH THE CURRENT FIELD
+            header = self.get_first(regex(header), self.adapter.get(heads))
+
+            # REPLACES ALL HEADERS BY '§' EXCEPT THE ONE BEING PROCESSED 
+            value = re.sub(regmask(header), '§', self.adapter.get(data))
+
+            # EXTRACTS DATA RELATED TO CURRENTLY PROCESSED FIELD (I.E. HEADER)
+            value = self.get_first(f'(?<={header})[^§]*', value)     #Gets data
+            value = self.get_all(r'[^¤]*', value) if value else []   #Cleaning
+
+            # UPDATING SCRAPY ITEM
+            self.adapter[field] = '¤'.join(value) if value else None
+
+        # ADDITIONAL STAGES (to be implemented)
+        # Dissociating `Budget` amount from the currency >> dedicated method
+        # Decomposing `color`. For instance some movies are "Couleur et N/B"
+        # etc.

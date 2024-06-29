@@ -5,7 +5,7 @@ from Movies.items import MoviesItem
 
 class MoviesSpiderSpider(scrapy.Spider):
     name = "movies_spider"
-    limit = 3 # To limit the number of movies to retrieve. None otherwise
+    limit = 10 # To limit the number of movies to retrieve. None otherwise
     start_urls = ["https://allocine.fr/films/"]
     allowed_domains = ["allocine.fr"]
 
