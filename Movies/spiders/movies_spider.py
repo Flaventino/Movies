@@ -1,11 +1,12 @@
-import scrapy
+import regex as re
+import scrapy, requests
 from urllib.parse import urljoin
 from Movies.items import MoviesItem
 
 
 class MoviesSpiderSpider(scrapy.Spider):
     name = "movies_spider"
-    limit = 10 # To limit the number of movies to retrieve. None otherwise
+    limit = 4 # To limit the number of movies to retrieve. None otherwise
     start_urls = ["https://allocine.fr/films/"]
     allowed_domains = ["allocine.fr"]
 
@@ -22,26 +23,10 @@ class MoviesSpiderSpider(scrapy.Spider):
 
         # GET THE FULL LIST OF MOVIE GENRES
         path = "//ul[contains(@data-name, '{}')]//text()".format
-        #genres_path = "//ul[contains(@data-name, 'genre')]//text()"
-        #self.genres = '¤'.join(response.xpath(genres_path).getall())
         self.genre = '¤'.join(response.xpath(path('genre')).getall())
-        # print('##############################################################')
-        # print('GENRES DE FILMS DEPUIS "PARSE"')
-        # print(dir(response))
-        # print(response.url)
-        # print(path("'GASTON'"))
-        # print(self.genre[:20])
-        # print('##############################################################')
 
         # GET THE FULL LIST OF COUNTRIES
-        #countries_path = "//ul[contains(@data-name, 'pays')]//text()"
-        # self.countries = '¤'.join(response.xpath(countries_path).getall())
         self.country = '¤'.join(response.xpath(path('pays')).getall())
-        # print('##############################################################')
-        # print('PAYS DEPUIS "PARSE"')
-        # print(path('GASTON'))
-        # print(self.country[:20])
-        # print('##############################################################')
 
         # SCRAP MOVIES
         yield from self.parse_pages(response)
@@ -61,7 +46,7 @@ class MoviesSpiderSpider(scrapy.Spider):
             self.n += 1
             movie_url = movie.xpath('.//h2/a/@href').get()
 
-            if self.limit and self.limit <= self.n:
+            if self.limit and self.limit < self.n:
                 stop = True
                 break
             else:
@@ -81,9 +66,10 @@ class MoviesSpiderSpider(scrapy.Spider):
         grab = lambda x: '¤'.join(response.xpath(x).getall())
         tech ="//section[contains(@class, 'technical')]"
         meta = "//div[contains(@class, 'card') and contains(@class, 'entity')]"
-        casting_url = grab("//a[contains(@title, 'Casting')]/@href")
+        casting_url = self.get_casting_url(response)
+        #casting_url = grab("//a[contains(@title, 'Casting')]/@href")     # Old
 
-        # IMPLEMENTATING DATA PATHS FOR PURELY TEXT VALUES
+        # IMPLEMENTING DATA PATHS FOR PURELY TEXT VALUES
         paths = {
             'title' : f"{meta}//div[@class='meta-body-item']",
             'ratings': f"{meta}//div[contains(@class, 'rating')]",
@@ -105,10 +91,9 @@ class MoviesSpiderSpider(scrapy.Spider):
         item = MoviesItem(**data)
 
         # RETRIEVING MOVIE CASTING DATA IF AVAILABLE
-        if not casting_url:
+        if not self.is_valid_url(casting_url):
             yield item
         else:
-            casting_url = urljoin(response.url, casting_url)
             yield scrapy.Request(url=casting_url,
                                  meta={'item': item},
                                  callback=self.parse_casting)
@@ -119,19 +104,22 @@ class MoviesSpiderSpider(scrapy.Spider):
         """
 
         # RETRIEVES CASTING DATA
-        path = "//section[contains(@class, 'actor')]//text()"
-        casting = "¤".join(response.xpath(path).getall())
+        roles = "//section[contains(@class, 'actor')]//text()"
+        roles = "¤".join(response.xpath(roles).getall())
+        casting = "//body//script[contains(@type,'application')]/text()"
+        casting = eval(response.xpath(casting).get())
 
         # UPDATES MOVIE DATA WITH ITS CASTING DATA
-        #response.meta['data'].update({'casting': casting}) # Old version
-        response.meta['item']['casting'] = casting
+        print(f'Ok on scrape le casting: {response.url}')
+        response.meta['item'].update({'roles': roles, 'casting': casting})
 
         # FUNCTION OUTPUT
-        #yield response.meta['data'] # Old version (when item not implemented)
         yield response.meta['item']
 
     def get_next_page(self, response):
-        """Returns the new page url to follow or none"""
+        """
+        Returns the new page url to follow. Returns None If no page exists.
+        """
 
         # BASIC SETTINGS & INITIALIZATION
         url = None
@@ -153,3 +141,32 @@ class MoviesSpiderSpider(scrapy.Spider):
 
         # FUNCTION OUTPUT
         return url
+
+    def is_valid_url(self, url: str):
+        """
+        Checks url validity by sending a `head` request. Returns a boolean.
+
+        Parameter(s):
+            url (str): url to be checked
+        """
+
+        try:
+            response = requests.head(url, allow_redirects=True, timeout=5)
+            return response.status_code == 200
+        except requests.RequestException:
+            return False
+
+    def get_casting_url(self, response):
+        """
+        Builds and returns the movie casting url.
+
+        Several tryout showed that prasing a movie page to get its casting url
+        is not ever possible but a pattern exists. This methods leverages that
+        to return a catsing url which should work in any case...
+        """
+
+        # PARSES THE MOVIE DEDICATED PAGE TO GET ITS ID (allocine movie id)
+        movie_id = re.sub('\D+', '', response.url)
+
+        # FUNCTION OUTPUT
+        return urljoin(response.url, f'/film/fichefilm-{movie_id}/casting/')

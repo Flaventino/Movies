@@ -49,4 +49,5 @@ class MoviesItem(scrapy.Item):
     public_rating = scrapy.Field()
 
     # MOVIE CASTING
+    roles = scrapy.Field()
     casting = scrapy.Field()
