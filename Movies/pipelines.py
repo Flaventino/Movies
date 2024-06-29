@@ -116,6 +116,7 @@ class MovieScraperPipeline:
         self.clean_creators()    # Extract directors and writers
         self.clean_metadata()    # Extract release date and place, genres, etc.
         self.clean_technnical()  # Extract distributors, origin, languages etc.
+        self.clean_ratings()     # Extract Press and Public ratings
 
 
         print("##########################################################")
@@ -186,6 +187,26 @@ class MovieScraperPipeline:
 
             # IN-PLACE BACKUP
             self.adapter[field] = "¤".join(names) if names else None
+
+    def clean_ratings(self):
+        """
+        Extracts movie ratings (press & public) and reformats it.
+        """
+
+        # BASIC SETTINGS & INITIALIZATION
+        master = 'ratings'
+        regexp = r'(?i)(?<={}\W+)\d+[.,]{{0,1}}\d*'.format
+        fields = {'press_rating': 'presse', 'public_rating': 'spectateurs'}
+
+        # CLEANS 'ratings' FIELD IN-PLACE BEFORE EXTRACTING DETAILED DATA
+        self.adapter[master] = self.flatten(self.adapter.get(master))
+
+        # EXTRACTING & CLEANING PROCESS + SCRAPY ITEM UPDATE (field by field)
+        for field, header in fields.items():
+            rating = self.get_first(regexp(header), self.adapter.get(master))
+            rating = float(re.sub(r',', '.', rating)) if rating else None
+            self.adapter[field] = rating
+
 
     # Sub section dedicated to `metadata` cleaning
     def clean_metadata(self):
