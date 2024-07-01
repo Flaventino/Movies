@@ -98,7 +98,6 @@ class MovieScraperPipeline:
         return re.sub(r'\s+', ' ', txt) # Returns flatten withiut extra spaces
 
 
-
     # METHODS DEDICATED TO ITEM CLEANING
     def process_item(self, item, spider):
         """
@@ -111,7 +110,7 @@ class MovieScraperPipeline:
 
         # DATA CLEANING PIPELINE
         self.clean_titles()      # Cleaning of the french and original titles
-        # self.clean_synopsis()  # Synopsis cleaning --USELESS--
+        self.clean_synopsis()    # Synopsis cleaning
         self.clean_film_poster() # Movie poster (get clean url)
         self.clean_creators()    # Extract directors and writers
         self.clean_metadata()    # Extract release date and place, genres, etc.
@@ -152,6 +151,21 @@ class MovieScraperPipeline:
 
             # UPDATING THE ITEM'S FIELD WITH A CLEAN VALUE OR SIMPLY NONE.
             self.adapter[field] = title
+
+    def clean_synopsis(self):
+        """
+        Applies a basic cleaning on scraped data. Returns a string or None.
+
+        Basic cleaning consists in applying `flatten` methods (see docstring).
+        If ever the scraping process did not find synopsis a None is returned. 
+        """
+
+        # BASIC CLEANING PROCESS
+        synopsis = self.flatten(self.adapter.get('synopsis'), commas=False)
+        synopsis = synopsis.strip(" ,¤")
+
+        # FUNCTION OUTPUT
+        self.adapter['synopsis'] = synopsis if synopsis else None
 
     def clean_film_poster(self):
         # INITIALIZATION
