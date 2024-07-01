@@ -13,11 +13,12 @@ class movie(MovieDB):
 
     # COLUMNS OF THE TABLE
     Id = Column(Integer, primary_key=True, autoincrement=True)
-    Title = Column(String, nullable=True)
-    Title_Fr = Column(String, nullable=True)
+    Title = Column(String, nullable=True)              # See Schema constraints
+    Title_Fr = Column(String, nullable=True)           # See Schema constraints
     Synopsis = Column(String, nullable=True)
     Duration = Column(Integer, nullable=True)
     Poster_url = Column(String, nullable=True)
+    movie_type = Column(String, nullable=True)
     Release_date = Column(Date, nullable=True)
     Release_place = Column(String, nullable=True)
     Production_year = Column(String, nullable=True)
