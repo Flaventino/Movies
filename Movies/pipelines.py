@@ -120,20 +120,20 @@ class MovieScraperPipeline:
         self.clean_casting()     # Extracts actor names and related role(s)
 
 
-        print("##############################################################")
-        #for key, value in response.meta['data'].items():
-        for key, value in item.items():
-            # if value:
-            print(f'{key}:\n{repr(value)}')
-            try:
-                print(f" >>> {self.flatten(self.adapter.get(key))}")
-            except:
-                print("None or Error!")
-            print()
-        #print(dir(response.meta['item']))
-        #print(response.meta['item'])
-        print("##############################################################")
-        print("--------------------------------------------------------------")
+        # print("##############################################################")
+        # #for key, value in response.meta['data'].items():
+        # for key, value in item.items():
+        #     # if value:
+        #     print(f'{key}:\n{repr(value)}')
+        #     try:
+        #         print(f" >>> {self.flatten(self.adapter.get(key))}")
+        #     except:
+        #         print("None or Error!")
+        #     print()
+        # #print(dir(response.meta['item']))
+        # #print(response.meta['item'])
+        # print("##############################################################")
+        # print("--------------------------------------------------------------")
 
         return item
 
