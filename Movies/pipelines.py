@@ -3,7 +3,7 @@ import dateparser, nltk
 from itemadapter import ItemAdapter
 
 
-# Download the stopwords corpus
+# DOWNLOAD THE STOPWORDS CORPUS FROM NLTK
 nltk.download('stopwords')
 
 # PIPELINE CLASSES
@@ -371,7 +371,7 @@ class MovieScraperPipeline:
         # Decomposing `color`. For instance some movies are "Couleur et N/B"
         # etc.
 
-    # Sub section dedicated to `casting` cleaning
+    # Sub section dedicated to `casting` data cleaning
     def clean_casting(self):
         """
         Leverages scraped date related to the casting to get actors & roles.
