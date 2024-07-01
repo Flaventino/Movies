@@ -152,6 +152,10 @@ class MovieScraperPipeline:
             # UPDATING THE ITEM'S FIELD WITH A CLEAN VALUE OR SIMPLY NONE.
             self.adapter[field] = title
 
+        # CHECK MOVIE TITLE IN FRANCE
+        if not self.adapter.get('title_fr'):
+            self.adapter['title_fr'] = self.adapter.get('title')
+
     def clean_synopsis(self):
         """
         Applies a basic cleaning on scraped data. Returns a string or None.
