@@ -3,7 +3,7 @@ import dateparser, nltk
 from itemadapter import ItemAdapter
 
 
-# Download the stopwords corpus
+# DOWNLOAD THE STOPWORDS CORPUS FROM NLTK
 nltk.download('stopwords')
 
 # PIPELINE CLASSES
@@ -120,20 +120,20 @@ class MovieScraperPipeline:
         self.clean_casting()     # Extracts actor names and related role(s)
 
 
-        print("##############################################################")
-        #for key, value in response.meta['data'].items():
-        for key, value in item.items():
-            # if value:
-            print(f'{key}:\n{repr(value)}')
-            try:
-                print(f" >>> {self.flatten(self.adapter.get(key))}")
-            except:
-                print("None or Error!")
-            print()
-        #print(dir(response.meta['item']))
-        #print(response.meta['item'])
-        print("##############################################################")
-        print("--------------------------------------------------------------")
+        # print("##############################################################")
+        # #for key, value in response.meta['data'].items():
+        # for key, value in item.items():
+        #     # if value:
+        #     print(f'{key}:\n{repr(value)}')
+        #     try:
+        #         print(f" >>> {self.flatten(self.adapter.get(key))}")
+        #     except:
+        #         print("None or Error!")
+        #     print()
+        # #print(dir(response.meta['item']))
+        # #print(response.meta['item'])
+        # print("##############################################################")
+        # print("--------------------------------------------------------------")
 
         return item
 
@@ -371,7 +371,7 @@ class MovieScraperPipeline:
         # Decomposing `color`. For instance some movies are "Couleur et N/B"
         # etc.
 
-    # Sub section dedicated to `casting` cleaning
+    # Sub section dedicated to `casting` data cleaning
     def clean_casting(self):
         """
         Leverages scraped date related to the casting to get actors & roles.
