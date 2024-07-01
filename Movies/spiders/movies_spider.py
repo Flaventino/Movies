@@ -23,14 +23,15 @@ class MoviesSpiderSpider(scrapy.Spider):
 
         # GET THE FULL LIST OF MOVIE GENRES
         path = "//ul[contains(@data-name, '{}')]//text()".format
-        self.genre = '¤'.join(response.xpath(path('genre')).getall())
+        self.genre = self.concatenate(response.xpath(path('genre')).getall())
 
         # GET THE FULL LIST OF COUNTRIES
-        self.country = '¤'.join(response.xpath(path('pays')).getall())
+        self.country = self.concatenate(response.xpath(path('pays')).getall())
 
         # SCRAP MOVIES
         yield from self.parse_pages(response)
 
+    # Subsection dedicated to pages parsing (i.e. where movies are listed)
     def parse_pages(self, response):
         """
         Navigates one mmovie listing page to another.
@@ -57,13 +58,40 @@ class MoviesSpiderSpider(scrapy.Spider):
         if next_page and not stop:
             yield response.follow(next_page, callback=self.parse_pages)
 
+    def get_next_page(self, response):
+        """
+        Returns the new page url to follow. Returns None If no page exists.
+        """
+
+        # BASIC SETTINGS & INITIALIZATION
+        url = None
+        current = "[contains(@class, 'current')]"
+        hub_path = "//nav[starts-with(@class, 'pag')]/div/span{}/text()".format
+
+        # RETRIEVES THE CURRENT PAGE ID (i.e. current page number)
+        page_id = 1 + int(response.xpath(hub_path(current)).get().strip())
+
+        # GET THE ID OF THE VERY LAST AVAILABLE PAGE
+        numbers = response.xpath(hub_path('')).getall()
+        numbers = [number.strip() for number in numbers]
+        numbers = [int(number) for number in numbers if number.isnumeric()]
+        last_id = max(numbers)
+
+        # UPDATES 'url' IF REQUIRED
+        if page_id <= last_id:
+            url = f'{self.start_urls[0]}/?page={page_id}'
+
+        # FUNCTION OUTPUT
+        return url
+
+    # Subsection dedicated to scraping movies homepage.
     def parse_movie(self, response):
         """
         Parse a movie page to retrieve related data (title, synopsis, etc.)
         """
 
         # BASIC SETTINGS & INITIALIZATION OR FEATURES
-        grab = lambda x: '¤'.join(response.xpath(x).getall())
+        grab = lambda x: self.concatenate(response.xpath(x).getall())
         tech ="//section[contains(@class, 'technical')]"
         meta = "//div[contains(@class, 'card') and contains(@class, 'entity')]"
         casting_url = self.get_casting_url(response)
@@ -98,64 +126,7 @@ class MoviesSpiderSpider(scrapy.Spider):
                                  meta={'item': item},
                                  callback=self.parse_casting)
 
-    def parse_casting(self, response):
-        """
-        Parse the cast page to retrieve casting data.
-        """
-
-        # RETRIEVES CASTING DATA
-        roles = "//section[contains(@class, 'actor')]//text()"
-        roles = "¤".join(response.xpath(roles).getall())
-        casting = "//body//script[contains(@type,'application')]/text()"
-        casting = eval(response.xpath(casting).get())
-
-        # UPDATES MOVIE DATA WITH ITS CASTING DATA
-        print(f'Ok on scrape le casting: {response.url}')
-        response.meta['item'].update({'roles': roles, 'casting': casting})
-
-        # FUNCTION OUTPUT
-        yield response.meta['item']
-
-    def get_next_page(self, response):
-        """
-        Returns the new page url to follow. Returns None If no page exists.
-        """
-
-        # BASIC SETTINGS & INITIALIZATION
-        url = None
-        current = "[contains(@class, 'current')]"
-        hub_path = "//nav[starts-with(@class, 'pag')]/div/span{}/text()".format
-
-        # RETRIEVES THE CURRENT PAGE ID (i.e. current page number)
-        page_id = 1 + int(response.xpath(hub_path(current)).get().strip())
-
-        # GET THE ID OF THE VERY LAST AVAILABLE PAGE
-        numbers = response.xpath(hub_path('')).getall()
-        numbers = [number.strip() for number in numbers]
-        numbers = [int(number) for number in numbers if number.isnumeric()]
-        last_id = max(numbers)
-
-        # UPDATES 'url' IF REQUIRED
-        if page_id <= last_id:
-            url = f'{self.start_urls[0]}/?page={page_id}'
-
-        # FUNCTION OUTPUT
-        return url
-
-    def is_valid_url(self, url: str):
-        """
-        Checks url validity by sending a `head` request. Returns a boolean.
-
-        Parameter(s):
-            url (str): url to be checked
-        """
-
-        try:
-            response = requests.head(url, allow_redirects=True, timeout=5)
-            return response.status_code == 200
-        except requests.RequestException:
-            return False
-
+    # Subsection dedicated to scraping mmovies casting
     def get_casting_url(self, response):
         """
         Builds and returns the movie casting url.
@@ -170,3 +141,44 @@ class MoviesSpiderSpider(scrapy.Spider):
 
         # FUNCTION OUTPUT
         return urljoin(response.url, f'/film/fichefilm-{movie_id}/casting/')
+
+    def parse_casting(self, response):
+        """
+        Parse the cast page to retrieve casting data (people names and roles).
+        """
+
+        # RETRIEVES CASTING DATA
+        path = "//section[contains(@class, 'casting-actor')]"
+        casting = self.concatenate(response.xpath(path).getall())
+
+        # UPDATES SCRAPY ITEM (i.e. movie item) WITH ITS CASTING DATA
+        response.meta['item']['casting'] = casting
+
+        # FUNCTION OUTPUT
+        yield response.meta['item']
+
+    # Miscellaneous subsection
+    def is_valid_url(self, url: str):
+        """
+        Checks url validity by sending a `head` request. Returns a boolean.
+
+        Parameter(s):
+            url (str): url to be checked
+        """
+
+        # TESTING A `HEAD` REQUEST FAILS (if it fails, the url is not valid)
+        try:
+            response = requests.head(url, allow_redirects=True, timeout=5)
+            return response.status_code == 200
+        except requests.RequestException:
+            return False
+
+    def concatenate(self, list_or_set):
+        """Changes collections into strings with a unique separator.
+
+        Very important method since scraped collections (lists or sets) can be
+        changed into strings with the same very identifiable and distinct
+        separator '¤' (rare so efficient separator). The main purpose of this
+        method is essentially to simplify further regex parsing."""
+
+        return "¤".join(list_or_set)

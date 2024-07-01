@@ -68,9 +68,9 @@ class MovieScraperPipeline:
         """
 
         # PARSING PROCESS (extraction and cleaning)
-        string = re.findall(regex, string)          # Gets groups of words
-        string = [item.strip() for item in string]  # Removes extra spaces
-        string = [x for x in string if len(x) > 0]  # Keeps relevant groups
+        string = re.findall(regex, string)              # Gets groups of words
+        string = [item.strip(' ¤') for item in string]  # Removes extra spaces
+        string = [x for x in string if len(x) > 0]      # Keeps relevant groups
 
         # FUNCTION OUTPUT
         return set(string) if unique else string
@@ -117,18 +117,18 @@ class MovieScraperPipeline:
         self.clean_metadata()    # Extract release date and place, genres, etc.
         self.clean_technnical()  # Extract distributors, origin, languages etc.
         self.clean_ratings()     # Extract Press and Public ratings
+        self.clean_casting()     # Extracts actor names and related role(s)
 
 
         print("##############################################################")
         #for key, value in response.meta['data'].items():
         for key, value in item.items():
             # if value:
-            print(f'{key}:\n{repr(value)}', end='')
+            print(f'{key}:\n{repr(value)}')
             try:
                 print(f" >>> {self.flatten(self.adapter.get(key))}")
             except:
-                pass
-            #     print()
+                print("None or Error!")
             print()
         #print(dir(response.meta['item']))
         #print(response.meta['item'])
@@ -219,11 +219,6 @@ class MovieScraperPipeline:
 
         # CLEANS 'metadata' FIELD IN-PLACE BEFORE EXTRACTING DETAILED DATA
         self.adapter[field] = self.flatten(self.adapter.get(field))
-
-        # INITIALIZATION
-    #     data = self.adapter.get('metadata')  # Retrieves scraped data
-    #     data = self.flatten_raw_string(data) # Cleans controls & extra spaces
-    #     self.adapter['metadata'] = data      # Updates Item 'metadata' field
 
         # EXTRACTION & CLEANING PROCESS
         backup = self.adapter.get(field) # Creates raw data backup (see below)
@@ -326,7 +321,7 @@ class MovieScraperPipeline:
         # UPDATE OF THE SCRAPY ITEM
         self.adapter['release_place'] = '¤'.join(places) if places else None
 
-    # Sub section dedicated to `technical` info cleaning
+    # Sub section dedicated to `technical` data cleaning
     def clean_technnical(self):
         """
         Extracts technical details from scraped data (origin, distributor, etc).
@@ -375,3 +370,34 @@ class MovieScraperPipeline:
         # Dissociating `Budget` amount from the currency >> dedicated method
         # Decomposing `color`. For instance some movies are "Couleur et N/B"
         # etc.
+
+    # Sub section dedicated to `casting` cleaning
+    def clean_casting(self):
+        """
+        Leverages scraped date related to the casting to get actors & roles.
+
+        NB: Actors and roles are a litle part of scraped.
+        """
+
+        # BASIC SETTINGS & INITIALIZATION
+        field, roles = 'casting', {}
+        del_role_txt = r'(?i)r[oô]le\s*:*\s*'
+        actors_regex = r'(?i)(?<=link[^>]*>)[^<]*'
+        roles_regexp = r'(?i)(?<={}.*light[^>]*>)[^<]*'.format
+
+        # IN-PLACE CLEANING OF SCRAPED DATA BEFORE DETAILS EXTRACTION
+        # >>> Remmoves any controls, comas (if not numeric), and extra spaces
+        self.adapter[field] = self.flatten(self.adapter.get(field))
+        self.adapter[field] = re.sub(del_role_txt, '', self.adapter.get(field))
+
+        # GETS ACTORS LIST        
+        actors = self.get_all(actors_regex, self.adapter.get(field))
+
+        # GETS THE MOVIE CHARACTERS (I.E ROLES)
+        for actor in actors:
+            role = self.get_first(roles_regexp(actor), self.adapter.get(field))
+            role = role.strip(' <>¤') if role else None
+            roles[actor] = role
+
+        # UPDATE SCRAPY ITEM
+        self.adapter[field] = roles
