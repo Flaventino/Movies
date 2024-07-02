@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, CheckConstraint, UniqueConstraint
+from sqlalchemy import create_engine, PrimaryKeyConstraint
 from sqlalchemy import Column, ForeignKey, Integer, String, Date, Numeric
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
@@ -16,48 +16,32 @@ def foreign_key(target):
     This function helps to avoid redundancy when defining a foreign key.
     It is not anymore required to explicitely indicates the new column type.
     Before: newColumn = Column(<data type>, ForeignKey(target))
-    Now:  : NewColumn = Column(**foreign_key(target))
+    Now:  : NewColumn = Column(*foreign_key(target))
 
     Parameter(s):
         target (str): Full path to the target column
                       Ex: 'target_table_name.target_column_name'
     """
 
-    # Splits the target into table name and column name
-    table_name, column_name = target.split('.')
+    # EXTRACTS THE TABLE AND COLUMN NAMES FROM THE 'target' ARGUMENT
+    table_name, column_name = [item.strip() for item in target.split('.')]
     
-    # Fetches the metadata about the referenced column
+    # RETRIEVES THE METADATA ABOUT THE REFERENCED COLUMN
     target_column = MovieDB.metadata.tables[table_name].columns[column_name]
     
-    # Returns a dictionnary to use in `Column` method calls
-    return {'type_': target_column.type, 'ForeignKey': ForeignKey(target)}
+    # RETURNS A LIST TO BE USED AS ARGUMENT IN ANY `Column` METHOD CALL
+    return [target_column.type, ForeignKey(target)]
 
-# CREATING ABSTRACT TABLES
-class PeopleRole(MovieDB):
-    """
-    Helps factorizing code as it is a common part of other sub classes
-    """
-    # RAW PARAMETERS AND SETINGS
-    __abstract__ = True
-
-    # COLUMNS OF THE ABSTRACT TABLE
-    MovieId = Column(**foreign_key('movies.Id'))
-    PersonId = Column(**foreign_key('persons.Id'))
-
-    # DEFINING SCHEMA SPECIFIC CONSTRAINTS
-    __table_args__ = (UniqueConstraint(*['MovieID', 'PersonID'],
-                                       name='Composite_primary_key'))
-
-# CREATING TABLES (within the database)
+# CREATING TABLES OF THE DATABASE
 class Movies(MovieDB):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'movies'
 
-    # COLUMNS OF THE TABLE
-    # 1. Main details
+    # SPECIFIC TABLE COLUMNS
+    # 1. Main movie characteritics
     Id = Column(Integer, primary_key=True, autoincrement=True)
-    Title = Column(String, nullable=True)              # See Schema constraints
-    Title_Fr = Column(String, nullable=True)           # See Schema constraints
+    Title = Column(String, nullable=True)
+    Title_Fr = Column(String, nullable=False)
     Synopsis = Column(String, nullable=True)
     Duration = Column(Integer, nullable=True)
     Poster_url = Column(String, nullable=True)
@@ -73,27 +57,21 @@ class Movies(MovieDB):
     Release_date = Column(Date, nullable=True)
     Release_place = Column(String, nullable=True)
     Production_year = Column(Integer, nullable=True)
-    
 
-    # DEFINING SCHEMA SPECIFIC CONSTRAINTS
-    __table_args__ = (
-        CheckConstraint(sqltext="title IS NOT NULL OR title_fr IS NOT NULL",
-                        name="At_least_one_title_required"))
-
-    # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
+    # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy model and use)
     genres = relationship('Genres', back_populates='movies')
     actors = relationship('Actors', back_populates='movies')
     languages = relationship('Languages', back_populates='movies')
-    nationalities = relationship('Nationalities', back_populates='movies')
     directors = relationship('Directors', back_populates='movies')
-    screenwriters = relationship('ScreenWriters', back_populates='movies')
     distributors = relationship('Distributors', back_populates='movies')
+    screenwriters = relationship('ScreenWriters', back_populates='movies')
+    nationalities = relationship('Nationalities', back_populates='movies')
 
 class Persons(MovieDB):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'persons'
 
-    # COLUMNS OF THE TABLE
+    # SPECIFIC TABLE COLUMNS
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Full_name = Column(String, nullable=False)
 
@@ -101,6 +79,21 @@ class Persons(MovieDB):
     actor_play = relationship('Actors', back_populates='persons')
     film_making = relationship('Directors', back_populates='persons')
     screeplay_writing = relationship('ScreenWriters', back_populates='persons')
+
+class PeopleRole(MovieDB): # Abstract table for code factorization purpose)
+    """
+    Helps factorizing code as it is a common part of other sub classes
+    """
+    # RAW PARAMETERS AND SETINGS
+    __abstract__ = True
+
+    # COLUMNS OF THE ABSTRACT TABLE
+    MovieId = Column(*foreign_key('movies.Id'))
+    PersonId = Column(*foreign_key('persons.Id'))
+
+    # DEFINING SCHEMA SPECIFIC CONSTRAINTS
+    __table_args__ = (PrimaryKeyConstraint(*('MovieId', 'PersonId'),
+                                           name='Composite_primary_key'),)
 
 class Actors(PeopleRole):
     # RAW PARAMETERS AND SETINGS
@@ -137,7 +130,7 @@ class Companies(MovieDB):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'companies'
 
-    # COLUMNS OF THE ABSTRACT TABLE
+    # SPECIFIC TABLE COLUMNS
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Full_name = Column(String, nullable=False)
 
@@ -148,13 +141,13 @@ class Distributors(MovieDB):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'distributors'
 
-    # COLUMNS OF THE ABSTRACT TABLE
-    MovieId = Column(**foreign_key('movies.Id'))
-    CompId = Column(**foreign_key('distributors.Id'))
+    # SPECIFIC TABLE COLUMNS
+    MovieId = Column(*foreign_key('movies.Id'))
+    CompId = Column(*foreign_key('companies.Id'))
 
     # DEFINING SCHEMA SPECIFIC CONSTRAINTS
-    __table_args__ = (UniqueConstraint(*['MovieID', 'CompId'],
-                                       name='Composite_primary_key'))
+    __table_args__ = (PrimaryKeyConstraint(*('MovieId', 'CompId'),
+                                           name='Composite_primary_key'),)
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='distributors')
@@ -164,13 +157,13 @@ class Genres(MovieDB):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'genres'
 
-    # COLUMNS OF THE ABSTRACT TABLE
-    MovieId = Column(**foreign_key('movies.Id'))
+    # SPECIFIC TABLE COLUMNS
+    MovieId = Column(*foreign_key('movies.Id'))
     genre = Column(String, nullable=False)
 
     # DEFINING SCHEMA SPECIFIC CONSTRAINTS
-    __table_args__ = (UniqueConstraint(*['MovieID', 'genre'],
-                                       name='Composite_primary_key'))
+    __table_args__ = (PrimaryKeyConstraint(*('MovieId', 'genre'),
+                                           name='Composite_primary_key'),)
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='genres')
@@ -179,13 +172,13 @@ class Nationalities(MovieDB):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'nationalities'
 
-    # COLUMNS OF THE ABSTRACT TABLE
-    MovieId = Column(**foreign_key('movies.Id'))
+    # SPECIFIC TABLE COLUMNS
+    MovieId = Column(*foreign_key('movies.Id'))
     Nationality = Column(String, nullable=False)
 
     # DEFINING SCHEMA SPECIFIC CONSTRAINTS
-    __table_args__ = (UniqueConstraint(*['MovieID', 'Nationality'],
-                                       name='Composite_primary_key'))
+    __table_args__ = (PrimaryKeyConstraint(*('MovieId', 'Nationality'),
+                                           name='Composite_primary_key'),)
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='nationalities')
@@ -194,13 +187,13 @@ class Languages(MovieDB):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'languages'
 
-    # COLUMNS OF THE ABSTRACT TABLE
-    MovieId = Column(**foreign_key('movies.Id'))
+    # SPECIFIC TABLE COLUMNS
+    MovieId = Column(*foreign_key('movies.Id'))
     Language = Column(String, nullable=False)
 
     # DEFINING SCHEMA SPECIFIC CONSTRAINTS
-    __table_args__ = (UniqueConstraint(*['MovieID', 'Language'],
-                                       name='Composite_primary_key'))
+    __table_args__ = (PrimaryKeyConstraint(*('MovieId', 'Language'),
+                                           name='Composite_primary_key'),)
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='languages')
