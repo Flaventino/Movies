@@ -76,10 +76,13 @@ class Movies(MovieDB):
                         name="At_least_one_title_required"))
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
+    genres = relationship('Genres', back_populates='movies')
     actors = relationship('Actors', back_populates='movies')
+    languages = relationship('Languages', back_populates='movies')
+    nationalities = relationship('Nationalities', back_populates='movies')
     directors = relationship('Directors', back_populates='movies')
     screenwriters = relationship('ScreenWriters', back_populates='movies')
-    #distributors = relationship('Distributors', back_populates='movies')
+    distributors = relationship('Distributors', back_populates='movies')
 
 
 class Persons(MovieDB):
@@ -128,3 +131,80 @@ class ScreenWriters(PeopleRole):
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='screenwriters')
     persons = relationship('Persons', back_populates='screeplay_writing')
+
+
+class Companies(MovieDB): 
+    # RAW PARAMETERS AND SETINGS
+    __tablename__ = 'companies'
+
+    # COLUMNS OF THE ABSTRACT TABLE
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    Full_name = Column(String, nullable=False)
+
+    # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
+    distribution = relationship('Distributors', back_populates='companies')
+
+
+class Distributors(MovieDB): 
+    # RAW PARAMETERS AND SETINGS
+    __tablename__ = 'distributors'
+
+    # COLUMNS OF THE ABSTRACT TABLE
+    MovieId = Column(**foreign_key('movies.Id'))
+    CompId = Column(**foreign_key('distributors.Id'))
+
+    # DEFINING SCHEMA SPECIFIC CONSTRAINTS
+    __table_args__ = (UniqueConstraint(*['MovieID', 'CompId'],
+                                       name='Composite_primary_key'))
+
+    # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
+    movies = relationship('Movies', back_populates='distributors')
+    companies = relationship('Persons', back_populates='distribution')
+
+
+class Genres(MovieDB): 
+    # RAW PARAMETERS AND SETINGS
+    __tablename__ = 'genres'
+
+    # COLUMNS OF THE ABSTRACT TABLE
+    MovieId = Column(**foreign_key('movies.Id'))
+    genre = Column(String, nullable=False)
+
+    # DEFINING SCHEMA SPECIFIC CONSTRAINTS
+    __table_args__ = (UniqueConstraint(*['MovieID', 'genre'],
+                                       name='Composite_primary_key'))
+
+    # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
+    movies = relationship('Movies', back_populates='genres')
+
+
+class Nationalities(MovieDB): 
+    # RAW PARAMETERS AND SETINGS
+    __tablename__ = 'nationalities'
+
+    # COLUMNS OF THE ABSTRACT TABLE
+    MovieId = Column(**foreign_key('movies.Id'))
+    Nationality = Column(String, nullable=False)
+
+    # DEFINING SCHEMA SPECIFIC CONSTRAINTS
+    __table_args__ = (UniqueConstraint(*['MovieID', 'Nationality'],
+                                       name='Composite_primary_key'))
+
+    # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
+    movies = relationship('Movies', back_populates='nationalities')
+
+
+class Languages(MovieDB): 
+    # RAW PARAMETERS AND SETINGS
+    __tablename__ = 'languages'
+
+    # COLUMNS OF THE ABSTRACT TABLE
+    MovieId = Column(**foreign_key('movies.Id'))
+    Language = Column(String, nullable=False)
+
+    # DEFINING SCHEMA SPECIFIC CONSTRAINTS
+    __table_args__ = (UniqueConstraint(*['MovieID', 'Language'],
+                                       name='Composite_primary_key'))
+
+    # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
+    movies = relationship('Movies', back_populates='languages')
