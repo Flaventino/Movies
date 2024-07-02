@@ -2,7 +2,10 @@ from sqlalchemy import create_engine, CheckConstraint, UniqueConstraint
 from sqlalchemy import Column, ForeignKey, Integer, String, Date, Numeric
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
-# INSTANCIATING A VIRTUAL SHAPE (OR SCTRUCTURE) FOR THE DATABASE 
+# DEFINES THE DATABASE ENVIRONMENT AND CREATES AN ENGINE (i.e. DB connector)
+engine = create_engine('sqlite:///../movies.db', echo=True)
+
+# INSTANCIATING A DATABASE FRAMEWORK (i.e. a mix of container and base class) 
 MovieDB = declarative_base()
 
 # HELPER FUNCTIONS (common to all classes and not dedicated to a specific one)
@@ -30,7 +33,10 @@ def foreign_key(target):
     return {'type_': target_column.type, 'ForeignKey': ForeignKey(target)}
 
 # CREATING ABSTRACT TABLES
-class PeopleRole(MovieDB): 
+class PeopleRole(MovieDB):
+    """
+    Helps factorizing code as it is a common part of other sub classes
+    """
     # RAW PARAMETERS AND SETINGS
     __abstract__ = True
 
@@ -41,7 +47,6 @@ class PeopleRole(MovieDB):
     # DEFINING SCHEMA SPECIFIC CONSTRAINTS
     __table_args__ = (UniqueConstraint(*['MovieID', 'PersonID'],
                                        name='Composite_primary_key'))
-
 
 # CREATING TABLES (within the database)
 class Movies(MovieDB):
@@ -84,7 +89,6 @@ class Movies(MovieDB):
     screenwriters = relationship('ScreenWriters', back_populates='movies')
     distributors = relationship('Distributors', back_populates='movies')
 
-
 class Persons(MovieDB):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'persons'
@@ -98,7 +102,6 @@ class Persons(MovieDB):
     film_making = relationship('Directors', back_populates='persons')
     screeplay_writing = relationship('ScreenWriters', back_populates='persons')
 
-
 class Actors(PeopleRole):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'actors'
@@ -110,7 +113,6 @@ class Actors(PeopleRole):
     movies = relationship('Movies', back_populates='actors')
     persons = relationship('Persons', back_populates='actor_play')
 
-
 class Directors(PeopleRole):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'directors'
@@ -120,7 +122,6 @@ class Directors(PeopleRole):
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='directors')
     persons = relationship('Persons', back_populates='film_making')
-
 
 class ScreenWriters(PeopleRole):
     # RAW PARAMETERS AND SETINGS
@@ -132,7 +133,6 @@ class ScreenWriters(PeopleRole):
     movies = relationship('Movies', back_populates='screenwriters')
     persons = relationship('Persons', back_populates='screeplay_writing')
 
-
 class Companies(MovieDB): 
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'companies'
@@ -143,7 +143,6 @@ class Companies(MovieDB):
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     distribution = relationship('Distributors', back_populates='companies')
-
 
 class Distributors(MovieDB): 
     # RAW PARAMETERS AND SETINGS
@@ -161,7 +160,6 @@ class Distributors(MovieDB):
     movies = relationship('Movies', back_populates='distributors')
     companies = relationship('Persons', back_populates='distribution')
 
-
 class Genres(MovieDB): 
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'genres'
@@ -176,7 +174,6 @@ class Genres(MovieDB):
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='genres')
-
 
 class Nationalities(MovieDB): 
     # RAW PARAMETERS AND SETINGS
@@ -193,7 +190,6 @@ class Nationalities(MovieDB):
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='nationalities')
 
-
 class Languages(MovieDB): 
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'languages'
@@ -208,3 +204,7 @@ class Languages(MovieDB):
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='languages')
+
+# PUT THE DATABASE ON HARD DRIVE AND CREATES A SESSION TO WORK WITH IT
+MovieDB.metadata.create_all(engine)
+session = sessionmaker(bind=engine)
