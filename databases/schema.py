@@ -2,35 +2,8 @@ from sqlalchemy import create_engine, PrimaryKeyConstraint
 from sqlalchemy import Column, ForeignKey, Integer, String, Date, Numeric
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
-# DEFINES THE DATABASE ENVIRONMENT AND CREATES AN ENGINE (i.e. DB connector)
-engine = create_engine('sqlite:///../movies.db', echo=True)
-
 # INSTANCIATING A DATABASE FRAMEWORK (i.e. a mix of container and base class) 
 MovieDB = declarative_base()
-
-# HELPER FUNCTIONS (common to all classes and not dedicated to a specific one)
-def foreign_key(target):
-    """
-    Returns a dictionary to use in `column` function call.
-
-    This function helps to avoid redundancy when defining a foreign key.
-    It is not anymore required to explicitely indicates the new column type.
-    Before: newColumn = Column(<data type>, ForeignKey(target))
-    Now:  : NewColumn = Column(*foreign_key(target))
-
-    Parameter(s):
-        target (str): Full path to the target column
-                      Ex: 'target_table_name.target_column_name'
-    """
-
-    # EXTRACTS THE TABLE AND COLUMN NAMES FROM THE 'target' ARGUMENT
-    table_name, column_name = [item.strip() for item in target.split('.')]
-    
-    # RETRIEVES THE METADATA ABOUT THE REFERENCED COLUMN
-    target_column = MovieDB.metadata.tables[table_name].columns[column_name]
-    
-    # RETURNS A LIST TO BE USED AS ARGUMENT IN ANY `Column` METHOD CALL
-    return [target_column.type, ForeignKey(target)]
 
 # CREATING TABLES OF THE DATABASE
 class Movies(MovieDB):
@@ -198,6 +171,51 @@ class Languages(MovieDB):
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='languages')
 
-# PUT THE DATABASE ON HARD DRIVE AND CREATES A SESSION TO WORK WITH IT
-MovieDB.metadata.create_all(engine)
-session = sessionmaker(bind=engine)
+# HELPER FUNCTIONS (To simplify the use or implementation of the database)
+def foreign_key(target):
+    """
+    Returns a python list to use in `column` function call.
+
+    This function helps to avoid redundancy when defining a foreign key.
+    It is indeed not anymore required to explicitely indicates the data type.
+    Before: `newColumn = Column(<data type>, ForeignKey(target))`
+    Now   : `NewColumn = Column(*foreign_key(target))`
+
+    Parameter(s):
+        target (str): Full path to the target column
+                      Ex: 'target_table_name.target_column_name'
+    """
+
+    # EXTRACTS THE TABLE AND COLUMN NAMES FROM THE 'target' ARGUMENT
+    table_name, column_name = [item.strip() for item in target.split('.')]
+    
+    # RETRIEVES THE METADATA ABOUT THE REFERENCED COLUMN
+    target_column = MovieDB.metadata.tables[table_name].columns[column_name]
+    
+    # RETURNS A LIST TO BE USED AS ARGUMENT IN ANY `Column` METHOD CALL
+    return [target_column.type, ForeignKey(target)]
+
+def db_connect(url: str = "sqlite:///../movies.db", **kwargs):
+    """
+    Creates or updates the database and returns access to it.
+
+    The database itself is never overwritten but only udpdated or created when
+    not already in place. The same for the tables inside the database.
+
+    Parameter(s):
+        url (str): url to connect the choosen database.
+                   By default: "sqlite:///../movies.db"
+        **kwargs : Additional arguments to be passed to `create_engine` method.
+                   For any details about the said method, see SQLAlchemy doc.
+
+    Returns:
+        A SQLAlchemy `sessionmaker` object to be instanciated into sessions.
+    """
+    # SET THE DB TYPE (sqlite, PostgreSQL, etc.) AND AN ENGINE (i.e. connector)
+    engine = create_engine(url, **kwargs)
+
+    # CREATES THE REQUIRED DATABASE (according data given into `url`)
+    MovieDB.metadata.create_all(engine)
+
+    # FUNCTION OUTPUT (returns a `sessionmaker` object to help DB interactions)
+    return sessionmaker(bind=engine)
