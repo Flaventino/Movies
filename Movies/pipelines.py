@@ -1,6 +1,7 @@
 import regex as re
 import dateparser, nltk
 from itemadapter import ItemAdapter
+from Databases.schema import db_connect
 
 
 # DOWNLOAD THE STOPWORDS CORPUS FROM NLTK
@@ -8,7 +9,7 @@ nltk.download('stopwords')
 
 # PIPELINE CLASSES
 class MovieScraperPipeline:
-    # Makeing a python `set` of french words to stop (i.e. drop)
+    # Making a python `set` of french words to stop (i.e. drop)
     fr_stopset = set(nltk.corpus.stopwords.words('french'))
 
     # SETTER METHODS
@@ -419,3 +420,10 @@ class MovieScraperPipeline:
 
         # UPDATE SCRAPY ITEM
         self.adapter[field] = roles
+
+class MovieDataBasePipeline:
+    # DO NOT FORGET TO ACTIVATE:DEACTIVATE THIS PIPELINE IN SETTINGS
+
+    def open_spider(self, spider):
+        self.session_maker = db_connect(echo=True)
+        self.session = self.session_maker()

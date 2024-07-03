@@ -29,7 +29,7 @@ def foreign_key(target):
     # RETURNS A LIST TO BE USED AS ARGUMENT IN ANY `Column` METHOD CALL
     return [target_column.type, ForeignKey(target)]
 
-def db_connect(url: str = "sqlite:///../movies.db", **kwargs):
+def db_connect(url: str = "sqlite:///./movies.db", **kwargs):
     """
     Creates or updates the database and returns access to it.
 
