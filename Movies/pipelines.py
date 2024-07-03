@@ -1,5 +1,4 @@
-import regex as re
-import dateparser, nltk
+import dateparser, nltk, regex as re
 from itemadapter import ItemAdapter
 from Databases.schema import db_connect
 
@@ -424,6 +423,12 @@ class MovieScraperPipeline:
 class MovieDataBasePipeline:
     # DO NOT FORGET TO ACTIVATE:DEACTIVATE THIS PIPELINE IN SETTINGS
 
+    # ACTIVATING DATABASE CONNECTION
     def open_spider(self, spider):
         self.session_maker = db_connect(echo=True)
         self.session = self.session_maker()
+
+    # SAVING DATA (Filling the database)
+    def process_item(self, item, spider):
+        def 
+        pass
