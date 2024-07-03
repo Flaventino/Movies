@@ -14,8 +14,10 @@ Purpose of this repo is to explore scrapy features, database storage and cloud i
 * The fourth (and probably last stage) will be to place the whole project on a azure server so that running it can be triggered.
   * This will be the moment to explore azure data factory other related ressources in order to design and run a pipeline on a scheduled way.
 
-N.B : At this stage, no interactions with any database nor cloud features has been implemented (This part is under development...)
+N.B :
 
+- At this moment (2024/07/03) the second stage of the project is on progress.
+- So at this stage, no interactions with any database nor cloud features has been implemented in the 'main' (This part is under development...)
 
 `<h2>` RUNING THE SCRAPER Running the scraper is quite easy.
 
@@ -23,4 +25,4 @@ N.B : At this stage, no interactions with any database nor cloud features has be
 2. Gessing poetry environment is already installed and its shell active, type :
    scrapy crawl movie_spider -O data.csv
 
-    n.b : "-O data.csv" is just a way to get a csv file and be sure the file is overwritten if it already exists.
+   n.b : "-O data.csv" is just a way to get a csv file and be sure the file is overwritten if it already exists.
