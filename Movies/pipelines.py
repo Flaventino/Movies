@@ -447,6 +447,7 @@ class MovieDataBasePipeline:
         # FILLING OF PRIMARY TABLES
         self.update_movies_table(item)
         self.update_persons_table(item)
+        self.update_companies_table(item)
 
         # FILLING ASSOCIATION TABLES
         #self.session.commit()
@@ -501,6 +502,24 @@ class MovieDataBasePipeline:
         for name in set(persons):
             self.session.add(schema.Persons(Full_Name=name))
             self.commit(warner=None)
+
+    def update_companies_table(self, item):
+        """
+        Gets dedicated data from the item and saves them into `persons` table.
+
+        Returns a warning message in the console when someone is already in.
+        """
+
+        # # GETS PEOPLE NAME (all people related to the movie)
+        # persons = list(item['casting']) if item['casting'] else []
+        # for field in ('directors', 'screenwriters'):
+        #     persons.extend(self.split(item[field]))
+
+        # # ADDING PERSONS NAME IN THE `persons` TABLE
+        # for name in set(persons):
+        #     self.session.add(schema.Persons(Full_Name=name))
+        #     self.commit(warner=None)
+        pass
 
     # VARIOUS HELPER METHODS (Involved in the saving process but not directly)
     def commit(self, warner: str = "Transaction aborted. Session rolled back"):

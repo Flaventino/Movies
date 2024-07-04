@@ -167,6 +167,10 @@ class Companies(MovieDB):
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     distribution = relationship('Distributors', back_populates='companies')
 
+    # DEFINING SCHEMA SPECIFIC CONSTRAINTS
+    __table_args__ = (UniqueConstraint('Full_Name',
+                                       name='Full_Name_should_be_unique'),)
+
 class Distributors(MovieDB): 
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'distributors'
