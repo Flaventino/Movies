@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, PrimaryKeyConstraint
+from sqlalchemy import create_engine, PrimaryKeyConstraint, UniqueConstraint
 from sqlalchemy import Column, ForeignKey, Integer, String, Date, Numeric
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
@@ -66,9 +66,9 @@ class Movies(MovieDB):
     Title_Fr = Column(String, nullable=False)
     Synopsis = Column(String, nullable=True)
     Duration = Column(Integer, nullable=True)
-    Poster_url = Column(String, nullable=True)
-    Press_rating = Column(Numeric(precision=2, scale=1), nullable=True)
-    Public_rating = Column(Numeric(precision=2, scale=1), nullable=True)
+    Poster_URL = Column(String, nullable=True)
+    Press_Rating = Column(Numeric(precision=2, scale=1), nullable=True)
+    Public_Rating = Column(Numeric(precision=2, scale=1), nullable=True)
 
     # 2. Tecnical details
     Visa = Column(String, nullable=True)
@@ -76,9 +76,9 @@ class Movies(MovieDB):
     Budget = Column(String, nullable=True)
     Format = Column(String, nullable=True)            # Whether color or B&W
     Category = Column(String, nullable=True)          # Feature film, doc, etc.
-    Release_date = Column(Date, nullable=True)
-    Release_place = Column(String, nullable=True)
-    Production_year = Column(Integer, nullable=True)
+    Release_Date = Column(Date, nullable=True)
+    Release_Place = Column(String, nullable=True)
+    Production_Year = Column(Integer, nullable=True)
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy model and use)
     genres = relationship('Genres', back_populates='movies')
@@ -89,18 +89,26 @@ class Movies(MovieDB):
     screenwriters = relationship('ScreenWriters', back_populates='movies')
     nationalities = relationship('Nationalities', back_populates='movies')
 
+    # DEFINING SCHEMA SPECIFIC CONSTRAINTS
+    __table_args__ = (UniqueConstraint(*('Title_Fr', 'Release_Date'),
+                                       name='Title_&_date_is_a_unique_pair'),)
+
 class Persons(MovieDB):
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'persons'
 
     # SPECIFIC TABLE COLUMNS
     Id = Column(Integer, primary_key=True, autoincrement=True)
-    Full_name = Column(String, nullable=False)
+    Full_Name = Column(String, nullable=False)
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     actor_play = relationship('Actors', back_populates='persons')
     film_making = relationship('Directors', back_populates='persons')
     screeplay_writing = relationship('ScreenWriters', back_populates='persons')
+
+    # DEFINING SCHEMA SPECIFIC CONSTRAINTS
+    __table_args__ = (UniqueConstraint('Full_Name',
+                                       name='Full_Name_should_be_unique'),)
 
 class PeopleRole(MovieDB): # Abstract table for code factorization purpose)
     """
@@ -154,7 +162,7 @@ class Companies(MovieDB):
 
     # SPECIFIC TABLE COLUMNS
     Id = Column(Integer, primary_key=True, autoincrement=True)
-    Full_name = Column(String, nullable=False)
+    Full_Name = Column(String, nullable=False)
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     distribution = relationship('Distributors', back_populates='companies')
@@ -173,7 +181,7 @@ class Distributors(MovieDB):
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='distributors')
-    companies = relationship('Persons', back_populates='distribution')
+    companies = relationship('Companies', back_populates='distribution')
 
 class Genres(MovieDB): 
     # RAW PARAMETERS AND SETINGS
@@ -181,10 +189,10 @@ class Genres(MovieDB):
 
     # SPECIFIC TABLE COLUMNS
     MovieId = Column(*foreign_key('movies.Id'))
-    genre = Column(String, nullable=False)
+    Genre = Column(String, nullable=False)
 
     # DEFINING SCHEMA SPECIFIC CONSTRAINTS
-    __table_args__ = (PrimaryKeyConstraint(*('MovieId', 'genre'),
+    __table_args__ = (PrimaryKeyConstraint(*('MovieId', 'Genre'),
                                            name='Composite_primary_key'),)
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)

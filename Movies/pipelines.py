@@ -1,13 +1,16 @@
 import dateparser, nltk, regex as re
+import sqlalchemy.exc as alchemyError
+from Databases import schema
 from itemadapter import ItemAdapter
-from Databases.schema import db_connect
-
 
 # DOWNLOAD THE STOPWORDS CORPUS FROM NLTK
 nltk.download('stopwords')
 
-# PIPELINE CLASSES
+# IMPLEMENTING THE `CLEANING PIPELINE`
 class MovieScraperPipeline:
+    """
+    PIPELINE DEDICATED TO SCRAPED DATA CLEANING
+    """
     # Making a python `set` of french words to stop (i.e. drop)
     fr_stopset = set(nltk.corpus.stopwords.words('french'))
 
@@ -288,7 +291,7 @@ class MovieScraperPipeline:
 
         # MOVIE DURATION - STAGE 2 - Reformating duration
         if time:
-            expr = r'(?i)(?<=\d+)\s*h\s*'           # Regex to match 'h'
+            expr = r'(?i)(?<=\d+)\s*h\s*0*'         # Regex to match 'h'
             time = re.sub(expr, '*60+', time)       # 'h' becomes '*60'
             time = re.sub(r'[\p{L}\s]*', '', time)  # Drops any leters & spaces
             time = int(eval(time))                  # Computes length (minutes)
@@ -420,15 +423,136 @@ class MovieScraperPipeline:
         # UPDATE SCRAPY ITEM
         self.adapter[field] = roles
 
+# IMPLEMENTING THE `STORAGE PIPELINE` OR `DATABASE PIPELINE` (save data in DB)
 class MovieDataBasePipeline:
     # DO NOT FORGET TO ACTIVATE:DEACTIVATE THIS PIPELINE IN SETTINGS
 
+    # CLASS ATTRIBUTES
+
+
     # ACTIVATING DATABASE CONNECTION
     def open_spider(self, spider):
-        self.session_maker = db_connect(echo=True)
+        self.session_maker = schema.db_connect(echo=False)
         self.session = self.session_maker()
 
     # SAVING DATA (Filling the database)
     def process_item(self, item, spider):
-        def 
-        pass
+        """
+        Save clean scraped data into a dedicated movie database.
+
+        This function is somehow the conductor of the saving process as it does
+        not really make the job itself but calls dedicated sub methods.
+        """
+
+        # FILLING OF PRIMARY TABLES
+        self.update_movies_table(item)
+        self.update_persons_table(item)
+
+        # FILLING ASSOCIATION TABLES
+        #self.session.commit()
+        return item
+
+    def update_movies_table(self, item):
+        """
+        Gets dedicated data from the item and saves them into `movies` table.
+
+        Returns a warning message in the console if movie already registered.
+        """
+
+        # INSTANCIATES A MOVIE FROM `MOVIES` CLASS (i.e. builds a new row)
+        movie = schema.Movies(
+            # Main movie characteristics
+            Title = item['title'],
+            Title_Fr = item['title_fr'],
+            Synopsis = item['synopsis'],
+            Duration = item['runtime_min'],
+            Poster_URL = item['film_poster'],
+            Press_Rating = item['press_rating'],
+            Public_Rating = item['public_rating'],
+            # Tecnical details
+            Visa = item['visa'],
+            Awards = item['awards'],
+            Budget = item['budget'],
+            Format = item['color'],
+            Category = item['types'],
+            Release_Date = self.get_python_date(item['release_date']),
+            Release_Place = item['release_place'],
+            Production_Year = item['production_year'])
+
+        # ADD THE NEW MOVIE (i.e. the new row) IN THE `Movies` TABLE
+        self.session.add(movie)
+
+        # TRANSACTION COMMITING
+        self.commit(warner=f"`{item['title_fr']}` is already in the database!")
+
+    def update_persons_table(self, item):
+        """
+        Gets dedicated data from the item and saves them into `persons` table.
+
+        Returns a warning message in the console when someone is already in.
+        """
+
+        # GETS PEOPLE NAME (all people related to the movie)
+        persons = list(item['casting']) if item['casting'] else []
+        for field in ('directors', 'screenwriters'):
+            persons.extend(self.split(item[field]))
+
+        # ADDING PERSONS NAME IN THE `persons` TABLE
+        for name in set(persons):
+            self.session.add(schema.Persons(Full_Name=name))
+            self.commit(warner=None)
+
+    # VARIOUS HELPER METHODS (Involved in the saving process but not directly)
+    def commit(self, warner: str = "Transaction aborted. Session rolled back"):
+        """
+        Commit changes if ACID compliant or rollback otherwise with message.
+
+        Parameter(s):
+            warner (str): OPTIONAL. Message to display if transaction aborted.
+                          Default: `Transaction aborted. Session rolled back`
+                          Optionally : `warner` can be set to None in order not
+                          to show any warning message. At your own risk !
+        """
+
+        # COMMITING PROCESS
+        try:
+            self.session.commit()
+        except alchemyError.IntegrityError:
+            self.session.rollback()
+            if warner:
+                print(warner)
+
+    def get_python_date(self, date: str):
+        """
+        Parse a string reprensenting a date and returns a `datetime` object.
+
+        Parameter(s):
+            date (str): String representing a date otherwise None
+
+        Returns: A datetime object or simply None
+        """
+
+        date = dateparser.parse(date) if date else None
+        return date.date() if date else None
+
+    def split(self, string: str, sep: str = '¤'):
+        """
+        Split a string according the given separator and returns a list.
+
+        The result can be an empty llist as each sub string extracted this way
+        is discarded if it is mepty (i.e. if its length is 0).
+
+        Parameter(s):
+            string (str): String to be splitted.
+            sep    (str): Character(s) to be used as the splitting indicator
+
+        returns: A list of strings potentially empty
+        """
+
+        result = [itm.strip() for itm in string.split(sep)] if string else []
+        return [itm for itm in result if itm and len(itm) > 1]
+
+    # CLOSING DATABASE CONNECTION
+    def close_spider(self, spider):
+        # Fermer la connection à la base de données
+        self.session.close()
