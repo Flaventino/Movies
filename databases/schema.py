@@ -31,7 +31,7 @@ def foreign_key(target):
 
 def db_connect(url: str = "sqlite:///./movies.db", **kwargs):
     """
-    Creates or updates the database and returns access to it.
+    Creates or updates the database schema then returns access to it.
 
     The database itself is never overwritten but only udpdated or created when
     not already in place. The same for the tables inside the database.
@@ -110,7 +110,7 @@ class Persons(MovieDB):
     __table_args__ = (UniqueConstraint('Full_Name',
                                        name='Full_Name_should_be_unique'),)
 
-class PeopleRole(MovieDB): # Abstract table for code factorization purpose)
+class PeopleRole(MovieDB): # Abstract table (for code factorization purpose)
     """
     Helps factorizing code as it is a common part of other sub classes
     """
@@ -156,7 +156,14 @@ class ScreenWriters(PeopleRole):
     movies = relationship('Movies', back_populates='screenwriters')
     persons = relationship('Persons', back_populates='screeplay_writing')
 
-class Companies(MovieDB): 
+class Companies(MovieDB):
+    """
+    Table dedicated to companies data. We scraped company name only so far.
+
+    Potentially, more data could be retrieved for companies (ex: address).
+    Hence this dedicated table to be used in conjunction with an association
+    table (i.e. `Distributors`) together with the `Movies` table.
+    """
     # RAW PARAMETERS AND SETINGS
     __tablename__ = 'companies'
 

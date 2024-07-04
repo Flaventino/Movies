@@ -435,7 +435,7 @@ class MovieDataBasePipeline:
         self.session_maker = schema.db_connect(echo=False)
         self.session = self.session_maker()
 
-    # SAVING DATA (Filling the database)
+    # SAVING DATA METHODS (Filling the database)
     def process_item(self, item, spider):
         """
         Save clean scraped data into a dedicated movie database.
@@ -510,16 +510,13 @@ class MovieDataBasePipeline:
         Returns a warning message in the console when someone is already in.
         """
 
-        # # GETS PEOPLE NAME (all people related to the movie)
-        # persons = list(item['casting']) if item['casting'] else []
-        # for field in ('directors', 'screenwriters'):
-        #     persons.extend(self.split(item[field]))
+        # GETS COMPANIES NAME (all people related to the movie)
+        companies = self.split(item['distributors'])
 
-        # # ADDING PERSONS NAME IN THE `persons` TABLE
-        # for name in set(persons):
-        #     self.session.add(schema.Persons(Full_Name=name))
-        #     self.commit(warner=None)
-        pass
+        # ADDING PERSONS NAME IN THE `persons` TABLE
+        for name in set(companies):
+            self.session.add(schema.Companies(Full_Name=name))
+            self.commit(warner=None)
 
     # VARIOUS HELPER METHODS (Involved in the saving process but not directly)
     def commit(self, warner: str = "Transaction aborted. Session rolled back"):
