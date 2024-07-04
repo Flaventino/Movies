@@ -427,9 +427,6 @@ class MovieScraperPipeline:
 class MovieDataBasePipeline:
     # DO NOT FORGET TO ACTIVATE:DEACTIVATE THIS PIPELINE IN SETTINGS
 
-    # CLASS ATTRIBUTES
-
-
     # ACTIVATING DATABASE CONNECTION
     def open_spider(self, spider):
         self.session_maker = schema.db_connect(echo=False)
@@ -450,6 +447,7 @@ class MovieDataBasePipeline:
         self.update_companies_table(item)
 
         # FILLING ASSOCIATION TABLES
+        #self.update_persons_roles(item)
         #self.session.commit()
         return item
 
@@ -498,8 +496,11 @@ class MovieDataBasePipeline:
         for field in ('directors', 'screenwriters'):
             persons.extend(self.split(item[field]))
 
+        # SAVING PERSONS SET TEMPORARILY TO ACCESS IT QUICKLY
+        self.persons = set(persons)       # Required to fill association tables
+
         # ADDING PERSONS NAME IN THE `persons` TABLE
-        for name in set(persons):
+        for name in self.persons:
             self.session.add(schema.Persons(Full_Name=name))
             self.commit(warner=None)
 
@@ -511,12 +512,18 @@ class MovieDataBasePipeline:
         """
 
         # GETS COMPANIES NAME (all people related to the movie)
-        companies = self.split(item['distributors'])
+        self.companies = set(self.split(item['distributors']))
 
         # ADDING PERSONS NAME IN THE `persons` TABLE
-        for name in set(companies):
+        for name in self.companies:
             self.session.add(schema.Companies(Full_Name=name))
             self.commit(warner=None)
+
+    # def update_persons_roles(self, item):
+    #     """
+    #     Fills `actors`, `directors` and `screenwriters` tables
+    #     """
+    #     pass
 
     # VARIOUS HELPER METHODS (Involved in the saving process but not directly)
     def commit(self, warner: str = "Transaction aborted. Session rolled back"):
