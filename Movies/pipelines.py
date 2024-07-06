@@ -448,6 +448,9 @@ class MovieDataBasePipeline:
 
         # FILLING ASSOCIATION TABLES
         self.update_actors_table(item)
+        self.update_directors_table(item)
+        self.update_screenwriters_table(item)
+        self.update_distributors_table(item)
         #self.session.commit()
         return item
 
@@ -484,10 +487,8 @@ class MovieDataBasePipeline:
             Production_Year = item['production_year'])
 
         # ADD THE NEW MOVIE (i.e. the new row) IN THE `Movies` TABLE
-        self.session.add(movie)
-
-        # TRANSACTION COMMITING
-        self.commit(warner=f"`{film}` is already in the database!")
+        message = f"`{film}` is already in the database!"
+        self.add_and_commit(movie, warner=message)
 
         # RETRIEVES THE MOVIE ID
         self.movie_id = queries.get_movie_id(film, release_date, self.session)
@@ -506,8 +507,7 @@ class MovieDataBasePipeline:
 
         # ADDS PERSONS NAME IN THE `persons` TABLE
         for name in persons:
-            self.session.add(schema.Persons(Full_Name=name))
-            self.commit(warner=None)
+            self.add_and_commit(schema.Persons(Full_Name=name), warner=None)
 
         # RETRIEVES PERSONS `Id` AND SAVE THEM TEMPORARY FOR QUICK ACCESS
         # >>> Required to fill association tables (`actors`, `directors`, etc.)
@@ -525,12 +525,11 @@ class MovieDataBasePipeline:
 
         # ADDING PERSONS NAME IN THE `persons` TABLE
         for name in companies:
-            self.session.add(schema.Companies(Full_Name=name))
-            self.commit(warner=None)
+            self.add_and_commit(schema.Companies(Full_Name=name), warner=None)
 
         # RETRIEVES COMPANIES `Id` AND SAVE THEM TEMPORARY FOR QUICK ACCESS
         # >>> Required to fill association tables
-        #self.companies = queries.get_companies_id(companies, self.session)
+        self.companies = queries.get_companies_id(companies, self.session)
 
     # Subsection dedicated to secondary tables (Associations or many-to-one)
     def update_actors_table(self, item):
@@ -543,22 +542,61 @@ class MovieDataBasePipeline:
             actor = schema.Actors(MovieId=self.movie_id,
                                   PersonId=self.persons[name],
                                   Characters=role)
-            self.session.add(actor)
-            self.commit(warner=None)
+            self.add_and_commit(actor, warner=None)
+
+    def update_directors_table(self, item):
+        """
+        Fills the `directors` association table which links movies and persons
+        """
+
+        # FILLING PROCESS
+        for name in set(self.split(item['directors'])):
+            director = schema.Directors(MovieId=self.movie_id,
+                                        PersonId=self.persons[name])
+            self.add_and_commit(director, warner=None)
+
+    def update_screenwriters_table(self, item):
+        """
+        Fills the `directors` association table which links movies and persons
+        """
+
+        # FILLING PROCESS
+        for name in set(self.split(item['screenwriters'])):
+            screenwriter = schema.ScreenWriters(MovieId=self.movie_id,
+                                                PersonId=self.persons[name])
+            self.add_and_commit(screenwriter, warner=None)
+
+    def update_distributors_table(self, item):
+        """
+        Fills the `directors` table which associates movies and companies
+        """
+
+        # FILLING PROCESS
+        for name, compid in self.companies.items():
+            distributor = schema.Distributors(MovieId=self.movie_id,
+                                              CompId=compid)
+            self.add_and_commit(distributor, warner=None)
 
     # VARIOUS HELPER METHODS (Involved in the saving process but not directly)
-    def commit(self, warner: str = "Transaction aborted. Session rolled back"):
+    def add_and_commit(self, item, warner=""):
         """
         Commit changes if ACID compliant or rollback otherwise with message.
 
         Parameter(s):
+            item (MobieDB): Instance (i.e. row) of one table to be added to it. 
             warner (str): OPTIONAL. Message to display if transaction aborted.
                           Default: `Transaction aborted. Session rolled back`
                           Optionally : `warner` can be set to None in order not
                           to show any warning message. At your own risk !
         """
+        # PROCESSING WARNING MESSAGE
+        txt = "Transaction aborted. Session rolled back"
+        warner = txt if warner == "" else warner
 
-        # COMMITING PROCESS
+        # ADDING GIVEN INSTANCE TO THE DATABASE
+        self.session.add(item)
+
+        # COMMITING PROCESS (validation of the transaction)
         try:
             self.session.commit()
         except alchemyError.IntegrityError:
@@ -573,7 +611,7 @@ class MovieDataBasePipeline:
         Parameter(s):
             date (str): String representing a date otherwise None
 
-        Returns: A datetime object or simply None
+        Returns: A datetime.date object or simply None
         """
 
         date = dateparser.parse(date) if date else None
@@ -593,6 +631,7 @@ class MovieDataBasePipeline:
         returns: A list of strings potentially empty
         """
 
+        # SPLITTING PROCESS: first split and strip, then discard non relevant.
         result = [itm.strip() for itm in string.split(sep)] if string else []
         return [itm for itm in result if itm and len(itm) > 1]
 

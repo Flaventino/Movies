@@ -83,11 +83,11 @@ class Movies(MovieDB):
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy model and use)
     genres = relationship('Genres', back_populates='movies')
     actors = relationship('Actors', back_populates='movies')
+    countries = relationship('Countries', back_populates='movies')
     languages = relationship('Languages', back_populates='movies')
     directors = relationship('Directors', back_populates='movies')
     distributors = relationship('Distributors', back_populates='movies')
     screenwriters = relationship('ScreenWriters', back_populates='movies')
-    nationalities = relationship('Nationalities', back_populates='movies')
 
     # DEFINING SCHEMA SPECIFIC CONSTRAINTS
     __table_args__ = (UniqueConstraint(*('Title_Fr', 'Release_Date'),
@@ -211,20 +211,20 @@ class Genres(MovieDB):
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='genres')
 
-class Nationalities(MovieDB): 
+class Countries(MovieDB): 
     # RAW PARAMETERS AND SETINGS
-    __tablename__ = 'nationalities'
+    __tablename__ = 'countries'
 
     # SPECIFIC TABLE COLUMNS
     MovieId = Column(*foreign_key('movies.Id'))
-    Nationality = Column(String, nullable=False)
+    Country = Column(String, nullable=False)
 
     # DEFINING SCHEMA SPECIFIC CONSTRAINTS
-    __table_args__ = (PrimaryKeyConstraint(*('MovieId', 'Nationality'),
+    __table_args__ = (PrimaryKeyConstraint(*('MovieId', 'Country'),
                                            name='Composite_primary_key'),)
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
-    movies = relationship('Movies', back_populates='nationalities')
+    movies = relationship('Movies', back_populates='countries')
 
 class Languages(MovieDB): 
     # RAW PARAMETERS AND SETINGS
