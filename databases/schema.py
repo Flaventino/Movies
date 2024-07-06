@@ -118,8 +118,8 @@ class PeopleRole(MovieDB): # Abstract table (for code factorization purpose)
     __abstract__ = True
 
     # COLUMNS OF THE ABSTRACT TABLE
-    MovieId = Column(*foreign_key('movies.Id'))
-    PersonId = Column(*foreign_key('persons.Id'))
+    MovieId = Column(*foreign_key('movies.Id'), nullable=False)
+    PersonId = Column(*foreign_key('persons.Id'), nullable=False)
 
     # DEFINING SCHEMA SPECIFIC CONSTRAINTS
     __table_args__ = (PrimaryKeyConstraint(*('MovieId', 'PersonId'),
@@ -130,7 +130,7 @@ class Actors(PeopleRole):
     __tablename__ = 'actors'
 
     # SPECIFIC TABLE COLUMNS
-    Characters = Column(String, nullable=False)
+    Characters = Column(String, nullable=True)
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='actors')

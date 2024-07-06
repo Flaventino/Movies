@@ -1,6 +1,6 @@
 import dateparser, nltk, regex as re
 import sqlalchemy.exc as alchemyError
-from Databases import schema
+from Databases import queries, schema
 from itemadapter import ItemAdapter
 
 # DOWNLOAD THE STOPWORDS CORPUS FROM NLTK
@@ -447,10 +447,11 @@ class MovieDataBasePipeline:
         self.update_companies_table(item)
 
         # FILLING ASSOCIATION TABLES
-        #self.update_persons_roles(item)
+        self.update_actors_table(item)
         #self.session.commit()
         return item
 
+    # Subsection dedicated to primary tables
     def update_movies_table(self, item):
         """
         Gets dedicated data from the item and saves them into `movies` table.
@@ -458,11 +459,15 @@ class MovieDataBasePipeline:
         Returns a warning message in the console if movie already registered.
         """
 
+        # BASIC SETTINGS & INITIALIZATION
+        film = item['title_fr']
+        release_date =self.get_python_date(item['release_date'])
+
         # INSTANCIATES A MOVIE FROM `MOVIES` CLASS (i.e. builds a new row)
         movie = schema.Movies(
             # Main movie characteristics
             Title = item['title'],
-            Title_Fr = item['title_fr'],
+            Title_Fr = film,
             Synopsis = item['synopsis'],
             Duration = item['runtime_min'],
             Poster_URL = item['film_poster'],
@@ -474,7 +479,7 @@ class MovieDataBasePipeline:
             Budget = item['budget'],
             Format = item['color'],
             Category = item['types'],
-            Release_Date = self.get_python_date(item['release_date']),
+            Release_Date = release_date,
             Release_Place = item['release_place'],
             Production_Year = item['production_year'])
 
@@ -482,7 +487,10 @@ class MovieDataBasePipeline:
         self.session.add(movie)
 
         # TRANSACTION COMMITING
-        self.commit(warner=f"`{item['title_fr']}` is already in the database!")
+        self.commit(warner=f"`{film}` is already in the database!")
+
+        # RETRIEVES THE MOVIE ID
+        self.movie_id = queries.get_movie_id(film, release_date, self.session)
 
     def update_persons_table(self, item):
         """
@@ -491,18 +499,19 @@ class MovieDataBasePipeline:
         Returns a warning message in the console when someone is already in.
         """
 
-        # GETS PEOPLE NAME (all people related to the movie)
-        persons = list(item['casting']) if item['casting'] else []
+        # GETS PEOPLE NAMES (all people related to the movie)
+        persons = set(item['casting']) if item['casting'] else set()
         for field in ('directors', 'screenwriters'):
-            persons.extend(self.split(item[field]))
+            persons.update(self.split(item[field]))
 
-        # SAVING PERSONS SET TEMPORARILY TO ACCESS IT QUICKLY
-        self.persons = set(persons)       # Required to fill association tables
-
-        # ADDING PERSONS NAME IN THE `persons` TABLE
-        for name in self.persons:
+        # ADDS PERSONS NAME IN THE `persons` TABLE
+        for name in persons:
             self.session.add(schema.Persons(Full_Name=name))
             self.commit(warner=None)
+
+        # RETRIEVES PERSONS `Id` AND SAVE THEM TEMPORARY FOR QUICK ACCESS
+        # >>> Required to fill association tables (`actors`, `directors`, etc.)
+        self.persons = queries.get_persons_id(persons, self.session)
 
     def update_companies_table(self, item):
         """
@@ -512,18 +521,30 @@ class MovieDataBasePipeline:
         """
 
         # GETS COMPANIES NAME (all people related to the movie)
-        self.companies = set(self.split(item['distributors']))
+        companies = set(self.split(item['distributors']))
 
         # ADDING PERSONS NAME IN THE `persons` TABLE
-        for name in self.companies:
+        for name in companies:
             self.session.add(schema.Companies(Full_Name=name))
             self.commit(warner=None)
 
-    # def update_persons_roles(self, item):
-    #     """
-    #     Fills `actors`, `directors` and `screenwriters` tables
-    #     """
-    #     pass
+        # RETRIEVES COMPANIES `Id` AND SAVE THEM TEMPORARY FOR QUICK ACCESS
+        # >>> Required to fill association tables
+        #self.companies = queries.get_companies_id(companies, self.session)
+
+    # Subsection dedicated to secondary tables (Associations or many-to-one)
+    def update_actors_table(self, item):
+        """
+        Fills the `actors` association table which links movies and persons
+        """
+
+        # FILLING PROCESS
+        for name, role in item['casting'].items():
+            actor = schema.Actors(MovieId=self.movie_id,
+                                  PersonId=self.persons[name],
+                                  Characters=role)
+            self.session.add(actor)
+            self.commit(warner=None)
 
     # VARIOUS HELPER METHODS (Involved in the saving process but not directly)
     def commit(self, warner: str = "Transaction aborted. Session rolled back"):
