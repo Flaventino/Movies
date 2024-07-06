@@ -446,6 +446,11 @@ class MovieDataBasePipeline:
         self.update_persons_table(item)
         self.update_companies_table(item)
 
+        # FILLING DEPENDENT TABLES
+        self.update_genres_table(item)
+        self.update_countries_table(item)
+        self.update_languages_table(item)
+
         # FILLING ASSOCIATION TABLES
         self.update_actors_table(item)
         self.update_directors_table(item)
@@ -496,8 +501,6 @@ class MovieDataBasePipeline:
     def update_persons_table(self, item):
         """
         Gets dedicated data from the item and saves them into `persons` table.
-
-        Returns a warning message in the console when someone is already in.
         """
 
         # GETS PEOPLE NAMES (all people related to the movie)
@@ -516,8 +519,6 @@ class MovieDataBasePipeline:
     def update_companies_table(self, item):
         """
         Gets dedicated data from the item and saves them into `persons` table.
-
-        Returns a warning message in the console when someone is already in.
         """
 
         # GETS COMPANIES NAME (all people related to the movie)
@@ -531,7 +532,40 @@ class MovieDataBasePipeline:
         # >>> Required to fill association tables
         self.companies = queries.get_companies_id(companies, self.session)
 
-    # Subsection dedicated to secondary tables (Associations or many-to-one)
+    # Subsection dedicated to dependent tables
+    def update_genres_table(self, item):
+        """
+        Gets dedicated data from the item and saves them into `genres` table.
+        """
+
+        # ADDING PERSONS NAME IN THE `persons` TABLE
+        for genre in set(self.split(item['categories'])):
+            movie_genre = schema.Genres(MovieId=self.movie_id, Genre=genre)
+            self.add_and_commit(movie_genre, warner=None)
+
+    def update_countries_table(self, item):
+        """
+        Gets dedicated data from the item and saves them in `countries` table.
+        """
+
+        # ADDING PERSONS NAME IN THE `persons` TABLE
+        for country in set(self.split(item['nationalities'])):
+            movie_country = schema.Countries(MovieId=self.movie_id,
+                                             Country=country)
+            self.add_and_commit(movie_country, warner=None)
+
+    def update_languages_table(self, item):
+        """
+        Gets dedicated data from the item and saves them in `languages` table.
+        """
+
+        # ADDING PERSONS NAME IN THE `persons` TABLE
+        for language in set(self.split(item['languages'])):
+            movie_language = schema.Languages(MovieId=self.movie_id,
+                                              Language=language)
+            self.add_and_commit(movie_language, warner=None)
+
+    # Subsection dedicated to association tables
     def update_actors_table(self, item):
         """
         Fills the `actors` association table which links movies and persons

@@ -4,7 +4,7 @@ from functools import wraps
 from Databases import schema
 from sqlalchemy.orm import Session
 
-# CREATING A SESSION MANAGER DECORATOR
+# CREATING FUNCTION DECORATOR TO MANAGE SESSIONS
 def manage_session(func):
     """
     FUNCTION DECORATOR : Gives functions a session and close it at the end.
