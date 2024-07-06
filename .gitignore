@@ -163,3 +163,4 @@ cython_debug/
 
 # Scraped files
 data.csv
+movies.db

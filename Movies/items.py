@@ -11,10 +11,10 @@ class MoviesItem(scrapy.Item):
     # name = scrapy.Field()
 
     # MOVIE
-    title = scrapy.Field()              # Scraped data
-    title_fr = scrapy.Field()           # Scraped data
-    synopsis = scrapy.Field()           # Scraped data
-    film_poster = scrapy.Field()        # Scraped data
+    title = scrapy.Field()              # Data scraped then cleaned in-place
+    title_fr = scrapy.Field()           # Data scraped then cleaned in-place
+    synopsis = scrapy.Field()           # Data scraped then cleaned in-place
+    film_poster = scrapy.Field()        # Data scraped then cleaned in-place
 
 
     # MOVIE CREATORS
@@ -30,7 +30,6 @@ class MoviesItem(scrapy.Item):
     release_place = scrapy.Field()      # >> Data created after scraping stage
 
     # MOVIE TECHNICAL DATA
-    #technical = scrapy.Field()
     tech_data = scrapy.Field()          # Scraped data
     tech_headers = scrapy.Field()       # Scraped data
     visa = scrapy.Field()               # >> Data created after scraping stage
@@ -44,9 +43,9 @@ class MoviesItem(scrapy.Item):
     production_year = scrapy.Field()    # >> Data created after scraping stage
 
     # MOVIE RATINGS
-    ratings = scrapy.Field()
-    press_rating = scrapy.Field()
-    public_rating = scrapy.Field()
+    ratings = scrapy.Field()            # Scraped data
+    press_rating = scrapy.Field()       # >> Data created after scraping stage
+    public_rating = scrapy.Field()      # >> Data created after scraping stage
 
     # MOVIE CASTING
-    casting = scrapy.Field()
+    casting = scrapy.Field()            # Data scraped then cleaned in-place

@@ -1,14 +1,17 @@
-import regex as re
-import dateparser, nltk
+import dateparser, nltk, regex as re
+import sqlalchemy.exc as alchemyError
+from Databases import queries, schema
 from itemadapter import ItemAdapter
-
 
 # DOWNLOAD THE STOPWORDS CORPUS FROM NLTK
 nltk.download('stopwords')
 
-# PIPELINE CLASSES
+# IMPLEMENTING THE `CLEANING PIPELINE`
 class MovieScraperPipeline:
-    # Makeing a python `set` of french words to stop (i.e. drop)
+    """
+    PIPELINE DEDICATED TO SCRAPED DATA CLEANING
+    """
+    # Making a python `set` of french words to stop (i.e. drop)
     fr_stopset = set(nltk.corpus.stopwords.words('french'))
 
     # SETTER METHODS
@@ -98,7 +101,6 @@ class MovieScraperPipeline:
         return re.sub(r'\s+', ' ', txt) # Returns flatten withiut extra spaces
 
 
-
     # METHODS DEDICATED TO ITEM CLEANING
     def process_item(self, item, spider):
         """
@@ -111,7 +113,7 @@ class MovieScraperPipeline:
 
         # DATA CLEANING PIPELINE
         self.clean_titles()      # Cleaning of the french and original titles
-        # self.clean_synopsis()  # Synopsis cleaning --USELESS--
+        self.clean_synopsis()    # Synopsis cleaning
         self.clean_film_poster() # Movie poster (get clean url)
         self.clean_creators()    # Extract directors and writers
         self.clean_metadata()    # Extract release date and place, genres, etc.
@@ -152,6 +154,25 @@ class MovieScraperPipeline:
 
             # UPDATING THE ITEM'S FIELD WITH A CLEAN VALUE OR SIMPLY NONE.
             self.adapter[field] = title
+
+        # CHECK MOVIE TITLE IN FRANCE
+        if not self.adapter.get('title_fr'):
+            self.adapter['title_fr'] = self.adapter.get('title')
+
+    def clean_synopsis(self):
+        """
+        Applies a basic cleaning on scraped data. Returns a string or None.
+
+        Basic cleaning consists in applying `flatten` methods (see docstring).
+        If ever the scraping process did not find synopsis a None is returned. 
+        """
+
+        # BASIC CLEANING PROCESS
+        synopsis = self.flatten(self.adapter.get('synopsis'), commas=False)
+        synopsis = synopsis.strip(" ,¤")
+
+        # FUNCTION OUTPUT
+        self.adapter['synopsis'] = synopsis if synopsis else None
 
     def clean_film_poster(self):
         # INITIALIZATION
@@ -270,7 +291,7 @@ class MovieScraperPipeline:
 
         # MOVIE DURATION - STAGE 2 - Reformating duration
         if time:
-            expr = r'(?i)(?<=\d+)\s*h\s*'           # Regex to match 'h'
+            expr = r'(?i)(?<=\d+)\s*h\s*0*'         # Regex to match 'h'
             time = re.sub(expr, '*60+', time)       # 'h' becomes '*60'
             time = re.sub(r'[\p{L}\s]*', '', time)  # Drops any leters & spaces
             time = int(eval(time))                  # Computes length (minutes)
@@ -401,3 +422,254 @@ class MovieScraperPipeline:
 
         # UPDATE SCRAPY ITEM
         self.adapter[field] = roles
+
+# IMPLEMENTING THE `STORAGE PIPELINE` OR `DATABASE PIPELINE` (save data in DB)
+class MovieDataBasePipeline:
+    # DO NOT FORGET TO ACTIVATE:DEACTIVATE THIS PIPELINE IN SETTINGS
+
+    # ACTIVATING DATABASE CONNECTION
+    def open_spider(self, spider):
+        self.session_maker = schema.db_connect(echo=False)
+        self.session = self.session_maker()
+
+    # SAVING DATA METHODS (Filling the database)
+    def process_item(self, item, spider):
+        """
+        Save clean scraped data into a dedicated movie database.
+
+        This function is somehow the conductor of the saving process as it does
+        not really make the job itself but calls dedicated sub methods.
+        """
+
+        # FILLING OF PRIMARY TABLES
+        self.update_movies_table(item)
+        self.update_persons_table(item)
+        self.update_companies_table(item)
+
+        # FILLING DEPENDENT TABLES
+        self.update_genres_table(item)
+        self.update_countries_table(item)
+        self.update_languages_table(item)
+
+        # FILLING ASSOCIATION TABLES
+        self.update_actors_table(item)
+        self.update_directors_table(item)
+        self.update_screenwriters_table(item)
+        self.update_distributors_table(item)
+        #self.session.commit()
+        return item
+
+    # Subsection dedicated to primary tables
+    def update_movies_table(self, item):
+        """
+        Gets dedicated data from the item and saves them into `movies` table.
+
+        Returns a warning message in the console if movie already registered.
+        """
+
+        # BASIC SETTINGS & INITIALIZATION
+        film = item['title_fr']
+        release_date =self.get_python_date(item['release_date'])
+
+        # INSTANCIATES A MOVIE FROM `MOVIES` CLASS (i.e. builds a new row)
+        movie = schema.Movies(
+            # Main movie characteristics
+            Title = item['title'],
+            Title_Fr = film,
+            Synopsis = item['synopsis'],
+            Duration = item['runtime_min'],
+            Poster_URL = item['film_poster'],
+            Press_Rating = item['press_rating'],
+            Public_Rating = item['public_rating'],
+            # Tecnical details
+            Visa = item['visa'],
+            Awards = item['awards'],
+            Budget = item['budget'],
+            Format = item['color'],
+            Category = item['types'],
+            Release_Date = release_date,
+            Release_Place = item['release_place'],
+            Production_Year = item['production_year'])
+
+        # ADD THE NEW MOVIE (i.e. the new row) IN THE `Movies` TABLE
+        message = f"`{film}` is already in the database!"
+        self.add_and_commit(movie, warner=message)
+
+        # RETRIEVES THE MOVIE ID
+        self.movie_id = queries.get_movie_id(film, release_date, self.session)
+
+    def update_persons_table(self, item):
+        """
+        Gets dedicated data from the item and saves them into `persons` table.
+        """
+
+        # GETS PEOPLE NAMES (all people related to the movie)
+        persons = set(item['casting']) if item['casting'] else set()
+        for field in ('directors', 'screenwriters'):
+            persons.update(self.split(item[field]))
+
+        # ADDS PERSONS NAME IN THE `persons` TABLE
+        for name in persons:
+            self.add_and_commit(schema.Persons(Full_Name=name), warner=None)
+
+        # RETRIEVES PERSONS `Id` AND SAVE THEM TEMPORARY FOR QUICK ACCESS
+        # >>> Required to fill association tables (`actors`, `directors`, etc.)
+        self.persons = queries.get_persons_id(persons, self.session)
+
+    def update_companies_table(self, item):
+        """
+        Gets dedicated data from the item and saves them into `persons` table.
+        """
+
+        # GETS COMPANIES NAME (all people related to the movie)
+        companies = set(self.split(item['distributors']))
+
+        # ADDING PERSONS NAME IN THE `persons` TABLE
+        for name in companies:
+            self.add_and_commit(schema.Companies(Full_Name=name), warner=None)
+
+        # RETRIEVES COMPANIES `Id` AND SAVE THEM TEMPORARY FOR QUICK ACCESS
+        # >>> Required to fill association tables
+        self.companies = queries.get_companies_id(companies, self.session)
+
+    # Subsection dedicated to dependent tables
+    def update_genres_table(self, item):
+        """
+        Gets dedicated data from the item and saves them into `genres` table.
+        """
+
+        # ADDING PERSONS NAME IN THE `persons` TABLE
+        for genre in set(self.split(item['categories'])):
+            movie_genre = schema.Genres(MovieId=self.movie_id, Genre=genre)
+            self.add_and_commit(movie_genre, warner=None)
+
+    def update_countries_table(self, item):
+        """
+        Gets dedicated data from the item and saves them in `countries` table.
+        """
+
+        # ADDING PERSONS NAME IN THE `persons` TABLE
+        for country in set(self.split(item['nationalities'])):
+            movie_country = schema.Countries(MovieId=self.movie_id,
+                                             Country=country)
+            self.add_and_commit(movie_country, warner=None)
+
+    def update_languages_table(self, item):
+        """
+        Gets dedicated data from the item and saves them in `languages` table.
+        """
+
+        # ADDING PERSONS NAME IN THE `persons` TABLE
+        for language in set(self.split(item['languages'])):
+            movie_language = schema.Languages(MovieId=self.movie_id,
+                                              Language=language)
+            self.add_and_commit(movie_language, warner=None)
+
+    # Subsection dedicated to association tables
+    def update_actors_table(self, item):
+        """
+        Fills the `actors` association table which links movies and persons
+        """
+
+        # FILLING PROCESS
+        for name, role in item['casting'].items():
+            actor = schema.Actors(MovieId=self.movie_id,
+                                  PersonId=self.persons[name],
+                                  Characters=role)
+            self.add_and_commit(actor, warner=None)
+
+    def update_directors_table(self, item):
+        """
+        Fills the `directors` association table which links movies and persons
+        """
+
+        # FILLING PROCESS
+        for name in set(self.split(item['directors'])):
+            director = schema.Directors(MovieId=self.movie_id,
+                                        PersonId=self.persons[name])
+            self.add_and_commit(director, warner=None)
+
+    def update_screenwriters_table(self, item):
+        """
+        Fills the `directors` association table which links movies and persons
+        """
+
+        # FILLING PROCESS
+        for name in set(self.split(item['screenwriters'])):
+            screenwriter = schema.ScreenWriters(MovieId=self.movie_id,
+                                                PersonId=self.persons[name])
+            self.add_and_commit(screenwriter, warner=None)
+
+    def update_distributors_table(self, item):
+        """
+        Fills the `directors` table which associates movies and companies
+        """
+
+        # FILLING PROCESS
+        for name, compid in self.companies.items():
+            distributor = schema.Distributors(MovieId=self.movie_id,
+                                              CompId=compid)
+            self.add_and_commit(distributor, warner=None)
+
+    # VARIOUS HELPER METHODS (Involved in the saving process but not directly)
+    def add_and_commit(self, item, warner=""):
+        """
+        Commit changes if ACID compliant or rollback otherwise with message.
+
+        Parameter(s):
+            item (MobieDB): Instance (i.e. row) of one table to be added to it. 
+            warner (str): OPTIONAL. Message to display if transaction aborted.
+                          Default: `Transaction aborted. Session rolled back`
+                          Optionally : `warner` can be set to None in order not
+                          to show any warning message. At your own risk !
+        """
+        # PROCESSING WARNING MESSAGE
+        txt = "Transaction aborted. Session rolled back"
+        warner = txt if warner == "" else warner
+
+        # ADDING GIVEN INSTANCE TO THE DATABASE
+        self.session.add(item)
+
+        # COMMITING PROCESS (validation of the transaction)
+        try:
+            self.session.commit()
+        except alchemyError.IntegrityError:
+            self.session.rollback()
+            if warner:
+                print(warner)
+
+    def get_python_date(self, date: str):
+        """
+        Parse a string reprensenting a date and returns a `datetime` object.
+
+        Parameter(s):
+            date (str): String representing a date otherwise None
+
+        Returns: A datetime.date object or simply None
+        """
+
+        date = dateparser.parse(date) if date else None
+        return date.date() if date else None
+
+    def split(self, string: str, sep: str = '¤'):
+        """
+        Split a string according the given separator and returns a list.
+
+        The result can be an empty llist as each sub string extracted this way
+        is discarded if it is mepty (i.e. if its length is 0).
+
+        Parameter(s):
+            string (str): String to be splitted.
+            sep    (str): Character(s) to be used as the splitting indicator
+
+        returns: A list of strings potentially empty
+        """
+
+        # SPLITTING PROCESS: first split and strip, then discard non relevant.
+        result = [itm.strip() for itm in string.split(sep)] if string else []
+        return [itm for itm in result if itm and len(itm) > 1]
+
+    # CLOSING DATABASE CONNECTION
+    def close_spider(self, spider):
+        # Fermer la connection à la base de données
+        self.session.close()
