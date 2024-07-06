@@ -16,8 +16,8 @@ Purpose of this repo is to explore scrapy features, database storage and cloud i
 
 N.B :
 
-- At this moment (2024/07/03) the second stage of the project is on progress.
-- So at this stage, no interactions with any database nor cloud features has been implemented in the 'main' (This part is under development...)
+- At this moment (2024/07/06) the third stage of the project is on progress.
+- So at this stage, scraped data are available in a locally hosted database of `sqlite` type but not on a the cloud.
 
 `<h2>` RUNING THE SCRAPER Running the scraper is quite easy.
 
