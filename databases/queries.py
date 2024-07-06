@@ -100,32 +100,32 @@ def get_persons_id(names, session=None):
     # FUNCTION OUTPUT
     return {full_name: code_id for code_id, full_name in query}
 
-# @manage_session
-# def get_companies_id(names, session=None):
-#     """
-#     Returns a dictionary with company names as keys and `Id` as values.
+@manage_session
+def get_companies_id(names, session=None):
+    """
+    Returns a dictionary with company names as keys and `Id` as values.
 
-#     Parameter(s)
-#         names (str|tuple|list|set): Names of people whose `Id` is requested.
-#                                     Either a single string or a collection of
-#                                     strings.
-#         session          (Session): OPTIONAL. SQLAlchemy session to use. If one
-#                                     session is provided, then it is simply used
-#                                     but not closed. if no session is provided,
-#                                     then one is open and closed at the end.
-#     """
+    Parameter(s)
+        names (str|tuple|list|set): Names of people whose `Id` is requested.
+                                    Either a single string or a collection of
+                                    strings.
+        session          (Session): OPTIONAL. SQLAlchemy session to use. If one
+                                    session is provided, then it is simply used
+                                    but not closed. if no session is provided,
+                                    then one is open and closed at the end.
+    """
 
-#     # BASIC SETTINGS & INITIALIZATION
-#     names = [names] if isinstance(names, str) else names
+    # BASIC SETTINGS & INITIALIZATION
+    names = [names] if isinstance(names, str) else names
 
-#     # QUERYING THE DATABASE
-#     query = (session
-#              .query(schema.Persons.Id, schema.Persons.Full_Name)
-#              .filter(schema.Persons.Full_Name.in_(names))
-#              .all())
+    # QUERYING THE DATABASE
+    query = (session
+             .query(schema.Companies.Id, schema.Companies.Full_Name)
+             .filter(schema.Companies.Full_Name.in_(names))
+             .all())
 
-#     # FUNCTION OUTPUT
-#     return {full_name: code_id for code_id, full_name in query}
+    # FUNCTION OUTPUT
+    return {full_name: code_id for code_id, full_name in query}
 
 # QUERIES TESTING
 # print(get_persons_id(['Alexandre De La Patellière',
@@ -135,3 +135,5 @@ def get_persons_id(names, session=None):
 #print(get_persons_id(set('gaston')))
 
 #print(get_movie_id(title='The Bikeriders', date='2024/06/19'))
+
+#print(get_companies_id(["Bac Films", "toto et les moutons démoniaques"]))

@@ -175,6 +175,8 @@ class Companies(MovieDB):
     distribution = relationship('Distributors', back_populates='companies')
 
     # DEFINING SCHEMA SPECIFIC CONSTRAINTS
+    # At this stage a unique constraint is required to properly manage queries
+    # This choise is to be reconsidered whenever (if ever) new columns.
     __table_args__ = (UniqueConstraint('Full_Name',
                                        name='Full_Name_should_be_unique'),)
 
