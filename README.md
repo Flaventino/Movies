@@ -23,11 +23,12 @@ Will consist in using a postgre database in place of the sqlite one (see above).
 will be to move our scraper from the local machine to an azure server as well. The obvious purpose of doing so is that the scrapper, in principle, is not intended to be run on a local computer but on a cloud server, at any time or on a scheduled basis.
   * This will be the moment to explore azure ressources in order to get the o,e required to execute scrapping as expexcted. At this moment nothing is decided: Azure function ? Data factory ? Azure Container registry (ACR + ACI) together with a Docker container ?
 
-## Project current stage:
+## Project status
+> Which Stage is the project ?
 * At this moment (2024/07/06) the second stage is fully complete and available (on `main` branch). As for the third stage it is under development (on `development` branch).
-* At this stage, aprta from being available on a csv file (provided the good command is run) the scraped data are available in a locally hosted database of `sqlite` type but not on a the cloud yet.
+* At this stage, aprt from being available on a csv file (provided the good command is run. See here after) the scraped data are available in a locally hosted database of `sqlite` type but not on a the cloud yet.
 
-### RUNING THE SCRAPER
+### How to run the scrapper ?
 Running the scraper is quite easy:
   1. Going to main directory (i.e. `Movies` directory where you also will find The 'README.md' file as well as a sub direcctory called `Movies` too)
   2. Gessing poetry environment is already installed and `poetry shell`is active exceute: `scrapy crawl movie_spider -O data.csv`
