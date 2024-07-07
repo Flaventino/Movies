@@ -28,7 +28,7 @@ will be to move our scraper from the local machine to an azure server as well. T
 * At this moment (2024/07/06) the second stage is fully complete and available (on `main` branch). As for the third stage it is under development (on `development` branch).
 * At this stage, aprt from being available on a csv file (provided the good command is run. See here after) the scraped data are available in a locally hosted database of `sqlite` type but not on a the cloud yet.
 
-### How to run the scrapper ?
+> How to run the scrapper ?
 Running the scraper is quite easy:
   1. Going to main directory (i.e. `Movies` directory where you also will find The 'README.md' file as well as a sub direcctory called `Movies` too)
   2. Gessing poetry environment is already installed and `poetry shell`is active exceute: `scrapy crawl movie_spider -O data.csv`
