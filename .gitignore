@@ -161,6 +161,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Scraped files
+# ignore scraped data (i.e. files created to record them)
 data.csv
 movies.db
+
+# Ignore the notebook at the root of the project (the purpose of these notebooks is to perform quick tests of Python code)
+*.ipynb
