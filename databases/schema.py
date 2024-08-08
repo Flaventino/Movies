@@ -2,8 +2,9 @@ from sqlalchemy import create_engine, PrimaryKeyConstraint, UniqueConstraint
 from sqlalchemy import Column, ForeignKey, Integer, String, Date, Numeric
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
-# INSTANCIATING A DATABASE FRAMEWORK (i.e. a mix of container and base class) 
+# INSTANCIATING A DATABASE FRAMEWORK & URL TO SET THE DB LOCATION AND TYPE
 MovieDB = declarative_base()
+database_url = "sqlite:///./movies.db"
 
 # HELPER FUNCTIONS (To simplify the use or implementation of the database)
 def foreign_key(target):
@@ -29,7 +30,7 @@ def foreign_key(target):
     # RETURNS A LIST TO BE USED AS ARGUMENT IN ANY `Column` METHOD CALL
     return [target_column.type, ForeignKey(target)]
 
-def db_connect(url: str = "sqlite:///./movies.db", **kwargs):
+def db_connect(url: str = database_url, **kwargs):
     """
     Creates or updates the database schema then returns access to it.
 
@@ -240,3 +241,5 @@ class Languages(MovieDB):
 
     # DEFINING PURE ORM RELATIONSHIPS (i.e. enhancing SQLAlchemy features)
     movies = relationship('Movies', back_populates='languages')
+
+# GENERATING A GRAPHICAL REPRESENTATION OF THE SCHEMA
